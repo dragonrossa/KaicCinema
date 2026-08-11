@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "886293972485",
+    "project_id": "cinema-8ff5c",
+    "storage_bucket": "cinema-8ff5c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886293972485:android:6181df1891e6bf9f057e6c",
+        "android_client_info": {
+          "package_name": "hr.foi.air.cinema"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNkNYIB8Jbr1IlOuLLaq9LSFgPTNgKuL8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
