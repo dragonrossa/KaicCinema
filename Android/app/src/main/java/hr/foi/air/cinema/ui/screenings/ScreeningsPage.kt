@@ -61,7 +61,11 @@ fun ScreeningsPage(
                             onCategorySelected = viewModel::onCategorySelected,
                         )
                     }
-                    ScreeningsList(screenings = state.filteredScreenings)
+                    SortOptionRow(
+                        selectedSortOption = state.sortOption,
+                        onSortOptionSelected = viewModel::onSortOptionSelected,
+                    )
+                    ScreeningsList(screenings = state.displayedScreenings)
                 }
             }
         }
@@ -91,6 +95,26 @@ private fun CategoryFilterRow(
                 selected = selectedCategory == category,
                 onClick = { onCategorySelected(category) },
                 label = { Text(category) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortOptionRow(
+    selectedSortOption: SortOption,
+    onSortOptionSelected: (SortOption) -> Unit,
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        items(SortOption.entries) { option ->
+            FilterChip(
+                selected = selectedSortOption == option,
+                onClick = { onSortOptionSelected(option) },
+                label = { Text(option.label) },
             )
         }
     }
@@ -135,6 +159,10 @@ private fun ScreeningCard(screening: Screening) {
             Text(text = screening.movieTitle, style = MaterialTheme.typography.titleMedium)
             Text(text = formatScreeningTime(screening.screeningTime), style = MaterialTheme.typography.bodyMedium)
             Text(text = screening.category, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "views: ${screening.views}, popularity: ${screening.popularity}",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }
