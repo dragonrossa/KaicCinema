@@ -7,10 +7,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import hr.foi.air.cinema.ui.auth.LoginPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningsPage
 
 private const val ARG_SCREENING_ID = "screeningId"
+private const val ROUTE_LOGIN = "login"
 private const val ROUTE_SCREENINGS = "screenings"
 private const val ROUTE_SCREENING_DETAILS = "screeningDetails/{$ARG_SCREENING_ID}"
 
@@ -20,9 +22,18 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
 
     NavHost(
         navController = navController,
-        startDestination = ROUTE_SCREENINGS,
+        startDestination = ROUTE_LOGIN,
         modifier = modifier,
     ) {
+        composable(ROUTE_LOGIN) {
+            LoginPage(
+                onLoginSuccess = {
+                    navController.navigate(ROUTE_SCREENINGS) {
+                        popUpTo(ROUTE_LOGIN) { inclusive = true }
+                    }
+                },
+            )
+        }
         composable(ROUTE_SCREENINGS) {
             ScreeningsPage(
                 onScreeningSelected = { screeningId ->
