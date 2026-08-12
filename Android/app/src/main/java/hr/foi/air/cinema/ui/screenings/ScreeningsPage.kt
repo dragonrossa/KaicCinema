@@ -1,5 +1,6 @@
 package hr.foi.air.cinema.ui.screenings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +27,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.Timestamp
 import hr.foi.air.cinema.data.Screening
+import hr.foi.air.cinema.ui.common.formatScreeningTime
 import hr.foi.air.cinema.ui.theme.CinemaTheme
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 @Composable
 fun ScreeningsPage(
+    onScreeningSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScreeningsViewModel = viewModel(),
 ) {
@@ -65,7 +66,10 @@ fun ScreeningsPage(
                         selectedSortOption = state.sortOption,
                         onSortOptionSelected = viewModel::onSortOptionSelected,
                     )
-                    ScreeningsList(screenings = state.displayedScreenings)
+                    ScreeningsList(
+                        screenings = state.displayedScreenings,
+                        onScreeningSelected = onScreeningSelected,
+                    )
                 }
             }
         }
@@ -121,7 +125,10 @@ private fun SortOptionRow(
 }
 
 @Composable
-private fun ScreeningsList(screenings: List<Screening>) {
+private fun ScreeningsList(
+    screenings: List<Screening>,
+    onScreeningSelected: (String) -> Unit,
+) {
     if (screenings.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
             Text(
@@ -140,17 +147,21 @@ private fun ScreeningsList(screenings: List<Screening>) {
             .padding(16.dp),
     ) {
         items(screenings, key = { it.id }) { screening ->
-            ScreeningCard(screening = screening)
+            ScreeningCard(
+                screening = screening,
+                onClick = { onScreeningSelected(screening.id) },
+            )
         }
     }
 }
 
 @Composable
-private fun ScreeningCard(screening: Screening) {
+private fun ScreeningCard(screening: Screening, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .clickable(onClick = onClick),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -167,11 +178,6 @@ private fun ScreeningCard(screening: Screening) {
     }
 }
 
-private fun formatScreeningTime(timestamp: Timestamp): String {
-    val formatter = SimpleDateFormat("dd.MM.yyyy. HH:mm", Locale.forLanguageTag("hr-HR"))
-    return formatter.format(timestamp.toDate())
-}
-
 @Preview(showBackground = true)
 @Composable
 fun ScreeningsPagePreview() {
@@ -181,6 +187,7 @@ fun ScreeningsPagePreview() {
                 Screening(id = "1", movieTitle = "Dune: Part Three", screeningTime = Timestamp.now(), category = "3D"),
                 Screening(id = "2", movieTitle = "Oppenheimer", screeningTime = Timestamp.now(), category = "Standard"),
             ),
+            onScreeningSelected = {},
         )
     }
 }

@@ -4,4 +4,5 @@ import kotlinx.coroutines.flow.Flow
 
 interface ScreeningRepository {
     fun observeScreenings(): Flow<List<Screening>>
+    fun observeScreening(id: String): Flow<Screening?>
 }

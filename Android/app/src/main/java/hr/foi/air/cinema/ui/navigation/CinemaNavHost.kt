@@ -1,0 +1,44 @@
+package hr.foi.air.cinema.ui.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
+import hr.foi.air.cinema.ui.screenings.ScreeningsPage
+
+private const val ARG_SCREENING_ID = "screeningId"
+private const val ROUTE_SCREENINGS = "screenings"
+private const val ROUTE_SCREENING_DETAILS = "screeningDetails/{$ARG_SCREENING_ID}"
+
+@Composable
+fun CinemaNavHost(modifier: Modifier = Modifier) {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = ROUTE_SCREENINGS,
+        modifier = modifier,
+    ) {
+        composable(ROUTE_SCREENINGS) {
+            ScreeningsPage(
+                onScreeningSelected = { screeningId ->
+                    navController.navigate("screeningDetails/$screeningId")
+                },
+            )
+        }
+        composable(
+            route = ROUTE_SCREENING_DETAILS,
+            arguments = listOf(navArgument(ARG_SCREENING_ID) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val screeningId = backStackEntry.arguments?.getString(ARG_SCREENING_ID).orEmpty()
+            ScreeningDetailsPage(
+                screeningId = screeningId,
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+    }
+}
