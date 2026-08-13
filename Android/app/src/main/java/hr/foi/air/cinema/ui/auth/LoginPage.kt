@@ -22,10 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import hr.foi.air.cinema.data.UserRole
 
 @Composable
 fun LoginPage(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (UserRole) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = viewModel(),
 ) {
@@ -34,8 +35,9 @@ fun LoginPage(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
-        if (uiState is LoginUiState.Success) {
-            onLoginSuccess()
+        val state = uiState
+        if (state is LoginUiState.Success) {
+            onLoginSuccess(state.role)
         }
     }
 

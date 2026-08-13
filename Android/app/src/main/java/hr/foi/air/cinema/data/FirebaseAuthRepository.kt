@@ -11,4 +11,6 @@ class FirebaseAuthRepository(
         auth.signInWithEmailAndPassword(email, password).await()
         Unit
     }
+
+    override fun currentUserId(): String? = auth.currentUser?.uid
 }
