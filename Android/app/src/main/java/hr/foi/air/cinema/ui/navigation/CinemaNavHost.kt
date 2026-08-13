@@ -22,6 +22,11 @@ private const val ROUTE_ADMIN_PANEL = "adminPanel"
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+    val goToLogin: () -> Unit = {
+        navController.navigate(ROUTE_LOGIN) {
+            popUpTo(0)
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -46,6 +51,7 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                 onScreeningSelected = { screeningId ->
                     navController.navigate("screeningDetails/$screeningId")
                 },
+                onLogout = goToLogin,
             )
         }
         composable(
@@ -60,11 +66,8 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
         }
         composable(ROUTE_ADMIN_PANEL) {
             AdminPanelPage(
-                onUnauthorized = {
-                    navController.navigate(ROUTE_LOGIN) {
-                        popUpTo(0)
-                    }
-                },
+                onUnauthorized = goToLogin,
+                onLogout = goToLogin,
             )
         }
     }

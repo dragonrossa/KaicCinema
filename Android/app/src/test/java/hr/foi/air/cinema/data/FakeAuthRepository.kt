@@ -7,6 +7,8 @@ class FakeAuthRepository(
 
     var loginCallCount = 0
         private set
+    var logoutCallCount = 0
+        private set
 
     override suspend fun login(email: String, password: String): Result<Unit> {
         loginCallCount++
@@ -14,4 +16,8 @@ class FakeAuthRepository(
     }
 
     override fun currentUserId(): String? = userId
+
+    override fun logout() {
+        logoutCallCount++
+    }
 }
