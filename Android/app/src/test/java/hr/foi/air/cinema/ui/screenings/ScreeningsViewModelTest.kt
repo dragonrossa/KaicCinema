@@ -4,6 +4,7 @@ import hr.foi.air.cinema.data.FakeScreeningRepository
 import hr.foi.air.cinema.data.Screening
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -68,5 +69,80 @@ class ScreeningsViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is ScreeningsUiState.Error)
         assertEquals("Greška pri dohvaćanju projekcija", (state as ScreeningsUiState.Error).message)
+    }
+
+    @Test
+    fun categories_derivedFromLoadedScreenings_distinctAndSorted() = runTest {
+        val screenings = listOf(
+            Screening(id = "1", movieTitle = "A", category = "3D"),
+            Screening(id = "2", movieTitle = "B", category = "Standard"),
+            Screening(id = "3", movieTitle = "C", category = "3D"),
+        )
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf("3D", "Standard"), state.categories)
+    }
+
+    @Test
+    fun onCategorySelected_filtersDisplayedScreeningsToThatCategoryOnly() = runTest {
+        val screenings = listOf(
+            Screening(id = "1", movieTitle = "A", category = "3D"),
+            Screening(id = "2", movieTitle = "B", category = "Standard"),
+        )
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onCategorySelected("3D")
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(screenings[0]), state.displayedScreenings)
+    }
+
+    @Test
+    fun onCategorySelected_null_restoresFullList() = runTest {
+        val screenings = listOf(
+            Screening(id = "1", movieTitle = "A", category = "3D"),
+            Screening(id = "2", movieTitle = "B", category = "Standard"),
+        )
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onCategorySelected("3D")
+        viewModel.onCategorySelected(null)
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(screenings, state.displayedScreenings)
+    }
+
+    @Test
+    fun categoryFilter_survivesRepeatedFirestoreEmissions() = runTest {
+        val initial = listOf(
+            Screening(id = "1", movieTitle = "A", category = "3D"),
+            Screening(id = "2", movieTitle = "B", category = "Standard"),
+        )
+        val screeningsFlow = MutableStateFlow(initial)
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = screeningsFlow),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onCategorySelected("3D")
+
+        val updated = initial + Screening(id = "3", movieTitle = "C", category = "3D")
+        screeningsFlow.value = updated
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals("3D", state.selectedCategory)
+        assertEquals(updated.filter { it.category == "3D" }, state.displayedScreenings)
     }
 }
