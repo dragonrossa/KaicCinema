@@ -1,7 +1,7 @@
 package hr.foi.air.cinema.ui.auth
 
-import hr.foi.air.cinema.data.AuthRepository
-import hr.foi.air.cinema.data.UserRepository
+import hr.foi.air.cinema.data.FakeAuthRepository
+import hr.foi.air.cinema.data.FakeUserRepository
 import hr.foi.air.cinema.data.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,9 +32,8 @@ class LoginViewModelTest {
 
     @Test
     fun login_blankCredentials_showsErrorWithoutCallingRepository() {
-        val authRepository = FakeAuthRepository(loginResult = Result.success(Unit))
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
-        val viewModel = LoginViewModel(authRepository, userRepository)
+        val authRepository = FakeAuthRepository()
+        val viewModel = LoginViewModel(authRepository, FakeUserRepository())
 
         viewModel.login(email = "", password = "")
 
@@ -44,9 +43,10 @@ class LoginViewModelTest {
 
     @Test
     fun login_validCredentials_userRole_updatesStateToSuccessWithUserRole() = runTest {
-        val authRepository = FakeAuthRepository(loginResult = Result.success(Unit))
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
-        val viewModel = LoginViewModel(authRepository, userRepository)
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(),
+            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
+        )
 
         viewModel.login(email = "user@example.com", password = "password123")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -56,9 +56,10 @@ class LoginViewModelTest {
 
     @Test
     fun login_validCredentials_adminRole_updatesStateToSuccessWithAdminRole() = runTest {
-        val authRepository = FakeAuthRepository(loginResult = Result.success(Unit))
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.ADMIN))
-        val viewModel = LoginViewModel(authRepository, userRepository)
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(),
+            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.ADMIN)),
+        )
 
         viewModel.login(email = "admin@example.com", password = "password123")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -68,9 +69,10 @@ class LoginViewModelTest {
 
     @Test
     fun login_authFailure_updatesStateToError() = runTest {
-        val authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci")))
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
-        val viewModel = LoginViewModel(authRepository, userRepository)
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
+            userRepository = FakeUserRepository(),
+        )
 
         viewModel.login(email = "user@example.com", password = "wrong")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -82,29 +84,14 @@ class LoginViewModelTest {
 
     @Test
     fun login_roleFetchFailure_updatesStateToError() = runTest {
-        val authRepository = FakeAuthRepository(loginResult = Result.success(Unit))
-        val userRepository = FakeUserRepository(roleResult = Result.failure(Exception("Greška pri dohvaćanju uloge")))
-        val viewModel = LoginViewModel(authRepository, userRepository)
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(),
+            userRepository = FakeUserRepository(roleResult = Result.failure(Exception("Greška pri dohvaćanju uloge"))),
+        )
 
         viewModel.login(email = "user@example.com", password = "password123")
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is LoginUiState.Error)
-    }
-
-    private class FakeAuthRepository(private val loginResult: Result<Unit>) : AuthRepository {
-        var loginCallCount = 0
-            private set
-
-        override suspend fun login(email: String, password: String): Result<Unit> {
-            loginCallCount++
-            return loginResult
-        }
-
-        override fun currentUserId(): String = "test-uid"
-    }
-
-    private class FakeUserRepository(private val roleResult: Result<UserRole>) : UserRepository {
-        override suspend fun getUserRole(uid: String): Result<UserRole> = roleResult
     }
 }

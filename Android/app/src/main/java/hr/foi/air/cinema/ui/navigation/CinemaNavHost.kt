@@ -59,7 +59,13 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             )
         }
         composable(ROUTE_ADMIN_PANEL) {
-            AdminPanelPage()
+            AdminPanelPage(
+                onUnauthorized = {
+                    navController.navigate(ROUTE_LOGIN) {
+                        popUpTo(0)
+                    }
+                },
+            )
         }
     }
 }
