@@ -145,4 +145,69 @@ class ScreeningsViewModelTest {
         assertEquals("3D", state.selectedCategory)
         assertEquals(updated.filter { it.category == "3D" }, state.displayedScreenings)
     }
+
+    @Test
+    fun sortOption_none_preservesOriginalOrder() = runTest {
+        val screenings = listOf(
+            Screening(id = "1", movieTitle = "A", views = 500, popularity = 10),
+            Screening(id = "2", movieTitle = "B", views = 100, popularity = 90),
+        )
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(screenings, state.displayedScreenings)
+    }
+
+    @Test
+    fun sortOption_mostViewed_sortsDescendingByViews() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", views = 100)
+        val b = Screening(id = "2", movieTitle = "B", views = 900)
+        val c = Screening(id = "3", movieTitle = "C", views = 500)
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(listOf(a, b, c))),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onSortOptionSelected(SortOption.MOST_VIEWED)
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(b, c, a), state.displayedScreenings)
+    }
+
+    @Test
+    fun sortOption_mostPopular_sortsDescendingByPopularity() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", popularity = 20)
+        val b = Screening(id = "2", movieTitle = "B", popularity = 95)
+        val c = Screening(id = "3", movieTitle = "C", popularity = 50)
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(listOf(a, b, c))),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onSortOptionSelected(SortOption.MOST_POPULAR)
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(b, c, a), state.displayedScreenings)
+    }
+
+    @Test
+    fun sortAndCategoryFilter_composeTogetherCorrectly() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", category = "3D", views = 300)
+        val b = Screening(id = "2", movieTitle = "B", category = "Standard", views = 900)
+        val c = Screening(id = "3", movieTitle = "C", category = "3D", views = 700)
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(listOf(a, b, c))),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onCategorySelected("3D")
+        viewModel.onSortOptionSelected(SortOption.MOST_VIEWED)
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(c, a), state.displayedScreenings)
+    }
 }
