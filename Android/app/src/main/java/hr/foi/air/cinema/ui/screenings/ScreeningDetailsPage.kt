@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,6 +28,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import hr.foi.air.cinema.data.Screening
+import hr.foi.air.cinema.ui.booking.ReservationUiState
+import hr.foi.air.cinema.ui.booking.ReservationViewModel
 import hr.foi.air.cinema.ui.common.formatScreeningTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,8 +43,14 @@ fun ScreeningDetailsPage(
             initializer { ScreeningDetailsViewModel(screeningId = screeningId) }
         },
     ),
+    reservationViewModel: ReservationViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { ReservationViewModel(screeningId = screeningId) }
+        },
+    ),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val reservationState by reservationViewModel.uiState.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -85,7 +94,11 @@ fun ScreeningDetailsPage(
                 }
 
                 is ScreeningDetailsUiState.Success -> {
-                    ScreeningDetailsContent(screening = state.screening)
+                    ScreeningDetailsContent(
+                        screening = state.screening,
+                        reservationState = reservationState,
+                        onReserveClick = reservationViewModel::reserveTicket,
+                    )
                 }
             }
         }
@@ -93,7 +106,11 @@ fun ScreeningDetailsPage(
 }
 
 @Composable
-private fun ScreeningDetailsContent(screening: Screening) {
+private fun ScreeningDetailsContent(
+    screening: Screening,
+    reservationState: ReservationUiState,
+    onReserveClick: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -115,5 +132,27 @@ private fun ScreeningDetailsContent(screening: Screening) {
             },
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (screening.availableSeats > 0) {
+            Button(
+                onClick = onReserveClick,
+                enabled = reservationState !is ReservationUiState.InProgress,
+            ) {
+                Text(if (reservationState is ReservationUiState.InProgress) "Rezerviranje..." else "Rezerviraj")
+            }
+        }
+        when (reservationState) {
+            is ReservationUiState.Success -> Text(
+                text = "Rezervacija poslana, status: na čekanju",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            is ReservationUiState.Error -> Text(
+                text = reservationState.message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            else -> {}
+        }
     }
 }
