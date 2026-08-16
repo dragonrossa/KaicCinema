@@ -28,6 +28,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import hr.foi.air.cinema.data.Screening
+import hr.foi.air.cinema.ui.booking.PurchaseUiState
+import hr.foi.air.cinema.ui.booking.PurchaseViewModel
 import hr.foi.air.cinema.ui.booking.ReservationUiState
 import hr.foi.air.cinema.ui.booking.ReservationViewModel
 import hr.foi.air.cinema.ui.common.formatScreeningTime
@@ -48,9 +50,15 @@ fun ScreeningDetailsPage(
             initializer { ReservationViewModel(screeningId = screeningId) }
         },
     ),
+    purchaseViewModel: PurchaseViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { PurchaseViewModel(screeningId = screeningId) }
+        },
+    ),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val reservationState by reservationViewModel.uiState.collectAsState()
+    val purchaseState by purchaseViewModel.uiState.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -98,6 +106,8 @@ fun ScreeningDetailsPage(
                         screening = state.screening,
                         reservationState = reservationState,
                         onReserveClick = reservationViewModel::reserveTicket,
+                        purchaseState = purchaseState,
+                        onPurchaseClick = purchaseViewModel::purchaseTicket,
                     )
                 }
             }
@@ -110,6 +120,8 @@ private fun ScreeningDetailsContent(
     screening: Screening,
     reservationState: ReservationUiState,
     onReserveClick: () -> Unit,
+    purchaseState: PurchaseUiState,
+    onPurchaseClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -139,6 +151,12 @@ private fun ScreeningDetailsContent(
             ) {
                 Text(if (reservationState is ReservationUiState.InProgress) "Rezerviranje..." else "Rezerviraj")
             }
+            Button(
+                onClick = onPurchaseClick,
+                enabled = purchaseState !is PurchaseUiState.InProgress,
+            ) {
+                Text(if (purchaseState is PurchaseUiState.InProgress) "Kupnja u tijeku..." else "Kupi")
+            }
         }
         when (reservationState) {
             is ReservationUiState.Success -> Text(
@@ -148,6 +166,20 @@ private fun ScreeningDetailsContent(
 
             is ReservationUiState.Error -> Text(
                 text = reservationState.message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            else -> {}
+        }
+        when (purchaseState) {
+            is PurchaseUiState.Success -> Text(
+                text = "Kupnja uspješna! Karta je zabilježena.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            is PurchaseUiState.Error -> Text(
+                text = purchaseState.message,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
             )
