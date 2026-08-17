@@ -41,4 +41,19 @@ class FirestoreTicketRepository(
             }
         awaitClose { registration.remove() }
     }
+
+    override fun observeAllReservations(): Flow<List<Reservation>> = callbackFlow {
+        val registration = firestore.collection(RESERVATIONS_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val reservations = snapshot?.documents?.map { document ->
+                    document.toObject(Reservation::class.java)?.copy(id = document.id) ?: Reservation(id = document.id)
+                } ?: emptyList()
+                trySend(reservations)
+            }
+        awaitClose { registration.remove() }
+    }
 }

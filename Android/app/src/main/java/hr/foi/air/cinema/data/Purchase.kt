@@ -6,5 +6,6 @@ data class Purchase(
     val id: String = "",
     val screeningId: String = "",
     val userId: String = "",
-    val purchasedAt: Timestamp = Timestamp.now(),
+    val status: PurchaseStatus = PurchaseStatus.COMPLETED,
+    val createdAt: Timestamp = Timestamp.now(),
 )

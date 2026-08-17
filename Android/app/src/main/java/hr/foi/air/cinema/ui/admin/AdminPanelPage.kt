@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,7 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import hr.foi.air.cinema.data.Purchase
+import hr.foi.air.cinema.data.Reservation
 import hr.foi.air.cinema.ui.auth.LogoutButton
+import hr.foi.air.cinema.ui.common.formatScreeningTime
 
 private val ADMIN_FEATURES = listOf(
     "Upravljanje projekcijama",
@@ -36,8 +41,10 @@ fun AdminPanelPage(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AdminAccessViewModel = viewModel(),
+    bookingsViewModel: AdminBookingsViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val bookingsState by bookingsViewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
         if (uiState is AdminAccessUiState.Denied) {
@@ -74,7 +81,7 @@ fun AdminPanelPage(
                 }
 
                 is AdminAccessUiState.Authorized -> {
-                    AdminPanelContent()
+                    AdminPanelContent(bookingsState = bookingsState)
                 }
             }
         }
@@ -82,10 +89,11 @@ fun AdminPanelPage(
 }
 
 @Composable
-private fun AdminPanelContent() {
+private fun AdminPanelContent(bookingsState: AdminBookingsUiState) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -97,6 +105,56 @@ private fun AdminPanelContent() {
                     modifier = Modifier.padding(16.dp),
                 )
             }
+        }
+
+        Text(text = "Rezervacije i kupnje", style = MaterialTheme.typography.titleMedium)
+
+        when (bookingsState) {
+            is AdminBookingsUiState.Loading -> {
+                Text(text = "Učitavanje...", style = MaterialTheme.typography.bodyMedium)
+            }
+
+            is AdminBookingsUiState.Error -> {
+                Text(
+                    text = bookingsState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+            is AdminBookingsUiState.Success -> {
+                if (bookingsState.reservations.isEmpty() && bookingsState.purchases.isEmpty()) {
+                    Text(text = "Nema zabilježenih rezervacija ni kupnji", style = MaterialTheme.typography.bodyMedium)
+                }
+                bookingsState.reservations.forEach { reservation -> ReservationRow(reservation) }
+                bookingsState.purchases.forEach { purchase -> PurchaseRow(purchase) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReservationRow(reservation: Reservation) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "Rezervacija", style = MaterialTheme.typography.labelMedium)
+            Text(text = "Korisnik: ${reservation.userId}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Projekcija: ${reservation.screeningId}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Status: ${reservation.status}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = formatScreeningTime(reservation.createdAt), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun PurchaseRow(purchase: Purchase) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "Kupnja", style = MaterialTheme.typography.labelMedium)
+            Text(text = "Korisnik: ${purchase.userId}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Projekcija: ${purchase.screeningId}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Status: ${purchase.status}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = formatScreeningTime(purchase.createdAt), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
