@@ -6,6 +6,8 @@ import hr.foi.air.cinema.data.Reservation
 import hr.foi.air.cinema.data.ReservationStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -90,5 +92,105 @@ class ReservationViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is ReservationUiState.Error)
         assertEquals("Greška pri rezervaciji", (state as ReservationUiState.Error).message)
+    }
+
+    @Test
+    fun initialReservationStatus_isLoading() {
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        assertEquals(ReservationStatusUiState.Loading, viewModel.reservationStatus.value)
+    }
+
+    @Test
+    fun noExistingReservation_updatesStatusToNoReservation() = runTest {
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reservationFlow = flowOf(null)),
+            authRepository = FakeAuthRepository(),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReservationStatusUiState.NoReservation, viewModel.reservationStatus.value)
+    }
+
+    @Test
+    fun existingReservationPending_updatesStatusToActivePending() = runTest {
+        val reservation = Reservation(id = "res-1", screeningId = "1", userId = "test-uid", status = ReservationStatus.PENDING)
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
+            authRepository = FakeAuthRepository(),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.reservationStatus.value
+        assertTrue(state is ReservationStatusUiState.Active)
+        assertEquals(ReservationStatus.PENDING, (state as ReservationStatusUiState.Active).status)
+    }
+
+    @Test
+    fun existingReservationApproved_updatesStatusToActiveApproved() = runTest {
+        val reservation = Reservation(id = "res-1", screeningId = "1", userId = "test-uid", status = ReservationStatus.APPROVED)
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
+            authRepository = FakeAuthRepository(),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.reservationStatus.value
+        assertTrue(state is ReservationStatusUiState.Active)
+        assertEquals(ReservationStatus.APPROVED, (state as ReservationStatusUiState.Active).status)
+    }
+
+    @Test
+    fun existingReservationRejected_updatesStatusToActiveRejected() = runTest {
+        val reservation = Reservation(id = "res-1", screeningId = "1", userId = "test-uid", status = ReservationStatus.REJECTED)
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
+            authRepository = FakeAuthRepository(),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.reservationStatus.value
+        assertTrue(state is ReservationStatusUiState.Active)
+        assertEquals(ReservationStatus.REJECTED, (state as ReservationStatusUiState.Active).status)
+    }
+
+    @Test
+    fun reservationStatus_noLoggedInUser_updatesToError() {
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(),
+            authRepository = FakeAuthRepository(userId = null),
+        )
+
+        assertTrue(viewModel.reservationStatus.value is ReservationStatusUiState.Error)
+    }
+
+    @Test
+    fun reservationStatus_repositoryError_updatesToError() = runTest {
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(
+                reservationFlow = flow { throw RuntimeException("Greška pri dohvaćanju statusa rezervacije") },
+            ),
+            authRepository = FakeAuthRepository(),
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.reservationStatus.value
+        assertTrue(state is ReservationStatusUiState.Error)
+        assertEquals("Greška pri dohvaćanju statusa rezervacije", (state as ReservationStatusUiState.Error).message)
     }
 }

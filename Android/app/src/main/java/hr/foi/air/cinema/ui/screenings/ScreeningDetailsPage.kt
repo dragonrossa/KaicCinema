@@ -27,9 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import hr.foi.air.cinema.data.ReservationStatus
 import hr.foi.air.cinema.data.Screening
 import hr.foi.air.cinema.ui.booking.PurchaseUiState
 import hr.foi.air.cinema.ui.booking.PurchaseViewModel
+import hr.foi.air.cinema.ui.booking.ReservationStatusUiState
 import hr.foi.air.cinema.ui.booking.ReservationUiState
 import hr.foi.air.cinema.ui.booking.ReservationViewModel
 import hr.foi.air.cinema.ui.common.formatScreeningTime
@@ -58,6 +60,7 @@ fun ScreeningDetailsPage(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val reservationState by reservationViewModel.uiState.collectAsState()
+    val reservationStatus by reservationViewModel.reservationStatus.collectAsState()
     val purchaseState by purchaseViewModel.uiState.collectAsState()
 
     Scaffold(
@@ -106,6 +109,7 @@ fun ScreeningDetailsPage(
                         screening = state.screening,
                         reservationState = reservationState,
                         onReserveClick = reservationViewModel::reserveTicket,
+                        reservationStatus = reservationStatus,
                         purchaseState = purchaseState,
                         onPurchaseClick = purchaseViewModel::purchaseTicket,
                     )
@@ -120,6 +124,7 @@ private fun ScreeningDetailsContent(
     screening: Screening,
     reservationState: ReservationUiState,
     onReserveClick: () -> Unit,
+    reservationStatus: ReservationStatusUiState,
     purchaseState: PurchaseUiState,
     onPurchaseClick: () -> Unit,
 ) {
@@ -159,13 +164,26 @@ private fun ScreeningDetailsContent(
             }
         }
         when (reservationState) {
-            is ReservationUiState.Success -> Text(
-                text = "Rezervacija poslana, status: na čekanju",
+            is ReservationUiState.Error -> Text(
+                text = reservationState.message,
+                color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            is ReservationUiState.Error -> Text(
-                text = reservationState.message,
+            else -> {}
+        }
+        when (reservationStatus) {
+            is ReservationStatusUiState.Active -> {
+                val (label, color) = when (reservationStatus.status) {
+                    ReservationStatus.PENDING -> "Status rezervacije: na čekanju" to MaterialTheme.colorScheme.tertiary
+                    ReservationStatus.APPROVED -> "Status rezervacije: odobreno" to MaterialTheme.colorScheme.primary
+                    ReservationStatus.REJECTED -> "Status rezervacije: odbijeno" to MaterialTheme.colorScheme.error
+                }
+                Text(text = label, color = color, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            is ReservationStatusUiState.Error -> Text(
+                text = reservationStatus.message,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
             )
