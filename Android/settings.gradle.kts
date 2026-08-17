@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Cinema"
 include(":app")
+include(":firestore-seed")
+project(":firestore-seed").projectDir = file("../firestore-seed")

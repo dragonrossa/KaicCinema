@@ -1,2 +1,7 @@
 /.idea
 .DS_Store
+
+# Firebase Admin SDK service account key used by firestore-seed — never commit this
+firestore-seed/*serviceAccount*.json
+firestore-seed/.gradle
+firestore-seed/build
