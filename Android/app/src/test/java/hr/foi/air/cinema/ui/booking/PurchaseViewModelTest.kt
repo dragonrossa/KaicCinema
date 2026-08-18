@@ -72,6 +72,23 @@ class PurchaseViewModelTest {
     }
 
     @Test
+    fun purchaseTicket_succeeds_evenWithoutAnyReservation() = runTest {
+        // SCRUM-120: reservation and purchase are an intentionally independent decision —
+        // purchase never checks reservation status, so it must succeed with no reservation at all.
+        val purchase = Purchase(id = "purchase-1", screeningId = "1", userId = "test-uid")
+        val viewModel = PurchaseViewModel(
+            screeningId = "1",
+            purchaseRepository = FakePurchaseRepository(purchaseResult = Result.success(purchase)),
+            authRepository = FakeAuthRepository(),
+        )
+
+        viewModel.purchaseTicket()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is PurchaseUiState.Success)
+    }
+
+    @Test
     fun purchaseTicket_repositoryError_updatesStateToError() = runTest {
         val viewModel = PurchaseViewModel(
             screeningId = "1",
