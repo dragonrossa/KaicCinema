@@ -19,7 +19,13 @@ service cloud.firestore {
 
     match /screenings/{screeningId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedSeats'])
+          && request.resource.data.reservedSeats == resource.data.reservedSeats + 1
+        );
     }
 
     match /reservations/{reservationId} {

@@ -6,21 +6,35 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+private const val SCREENINGS_COLLECTION = "screenings"
 private const val PURCHASES_COLLECTION = "purchases"
+private const val FIELD_RESERVED_SEATS = "reservedSeats"
 
 class FirestorePurchaseRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) : PurchaseRepository {
 
     override suspend fun purchaseTicket(screeningId: String, userId: String): Result<Purchase> = runCatching {
-        val documentRef = firestore.collection(PURCHASES_COLLECTION).document()
-        val purchase = Purchase(
-            id = documentRef.id,
-            screeningId = screeningId,
-            userId = userId,
-        )
-        documentRef.set(purchase).await()
-        purchase
+        val screeningRef = firestore.collection(SCREENINGS_COLLECTION).document(screeningId)
+        val purchaseRef = firestore.collection(PURCHASES_COLLECTION).document()
+
+        firestore.runTransaction { transaction ->
+            val screening = transaction.get(screeningRef).toObject(Screening::class.java)
+                ?: throw IllegalStateException("Projekcija ne postoji")
+
+            if (!screening.hasAvailableSeat()) {
+                throw NoSeatsAvailableException()
+            }
+
+            val purchase = Purchase(
+                id = purchaseRef.id,
+                screeningId = screeningId,
+                userId = userId,
+            )
+            transaction.update(screeningRef, FIELD_RESERVED_SEATS, screening.reservedSeats + 1)
+            transaction.set(purchaseRef, purchase)
+            purchase
+        }.await()
     }
 
     override fun observeAllPurchases(): Flow<List<Purchase>> = callbackFlow {

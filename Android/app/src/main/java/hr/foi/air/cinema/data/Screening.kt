@@ -14,4 +14,6 @@ data class Screening(
     val reservedSeats: Long = 0,
 ) {
     val availableSeats: Long get() = totalSeats - reservedSeats
+
+    fun hasAvailableSeat(): Boolean = availableSeats > 0
 }

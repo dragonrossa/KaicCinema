@@ -6,23 +6,37 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+private const val SCREENINGS_COLLECTION = "screenings"
 private const val RESERVATIONS_COLLECTION = "reservations"
 private const val FIELD_SCREENING_ID = "screeningId"
 private const val FIELD_USER_ID = "userId"
+private const val FIELD_RESERVED_SEATS = "reservedSeats"
 
 class FirestoreTicketRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) : TicketRepository {
 
     override suspend fun reserveTicket(screeningId: String, userId: String): Result<Reservation> = runCatching {
-        val documentRef = firestore.collection(RESERVATIONS_COLLECTION).document()
-        val reservation = Reservation(
-            id = documentRef.id,
-            screeningId = screeningId,
-            userId = userId,
-        )
-        documentRef.set(reservation).await()
-        reservation
+        val screeningRef = firestore.collection(SCREENINGS_COLLECTION).document(screeningId)
+        val reservationRef = firestore.collection(RESERVATIONS_COLLECTION).document()
+
+        firestore.runTransaction { transaction ->
+            val screening = transaction.get(screeningRef).toObject(Screening::class.java)
+                ?: throw IllegalStateException("Projekcija ne postoji")
+
+            if (!screening.hasAvailableSeat()) {
+                throw NoSeatsAvailableException()
+            }
+
+            val reservation = Reservation(
+                id = reservationRef.id,
+                screeningId = screeningId,
+                userId = userId,
+            )
+            transaction.update(screeningRef, FIELD_RESERVED_SEATS, screening.reservedSeats + 1)
+            transaction.set(reservationRef, reservation)
+            reservation
+        }.await()
     }
 
     override fun observeReservation(screeningId: String, userId: String): Flow<Reservation?> = callbackFlow {
