@@ -1,5 +1,6 @@
 package hr.foi.air.cinema.ui.admin
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,8 +29,10 @@ import hr.foi.air.cinema.data.Reservation
 import hr.foi.air.cinema.ui.auth.LogoutButton
 import hr.foi.air.cinema.ui.common.formatScreeningTime
 
+private const val FEATURE_MANAGE_SCREENINGS = "Upravljanje projekcijama"
+
 private val ADMIN_FEATURES = listOf(
-    "Upravljanje projekcijama",
+    FEATURE_MANAGE_SCREENINGS,
     "Objava novosti",
     "Odobravanje zahtjeva za rezervaciju",
 )
@@ -39,6 +42,7 @@ private val ADMIN_FEATURES = listOf(
 fun AdminPanelPage(
     onUnauthorized: () -> Unit,
     onLogout: () -> Unit,
+    onAddScreeningClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AdminAccessViewModel = viewModel(),
     bookingsViewModel: AdminBookingsViewModel = viewModel(),
@@ -81,7 +85,10 @@ fun AdminPanelPage(
                 }
 
                 is AdminAccessUiState.Authorized -> {
-                    AdminPanelContent(bookingsState = bookingsState)
+                    AdminPanelContent(
+                        bookingsState = bookingsState,
+                        onAddScreeningClick = onAddScreeningClick,
+                    )
                 }
             }
         }
@@ -89,7 +96,10 @@ fun AdminPanelPage(
 }
 
 @Composable
-private fun AdminPanelContent(bookingsState: AdminBookingsUiState) {
+private fun AdminPanelContent(
+    bookingsState: AdminBookingsUiState,
+    onAddScreeningClick: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -98,7 +108,12 @@ private fun AdminPanelContent(bookingsState: AdminBookingsUiState) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ADMIN_FEATURES.forEach { feature ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            val clickModifier = if (feature == FEATURE_MANAGE_SCREENINGS) {
+                Modifier.clickable(onClick = onAddScreeningClick)
+            } else {
+                Modifier
+            }
+            Card(modifier = Modifier.fillMaxWidth().then(clickModifier)) {
                 Text(
                     text = feature,
                     style = MaterialTheme.typography.bodyLarge,

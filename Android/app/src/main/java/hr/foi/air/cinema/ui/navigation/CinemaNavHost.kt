@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
 import hr.foi.air.cinema.ui.auth.LoginPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
@@ -18,6 +19,7 @@ private const val ROUTE_LOGIN = "login"
 private const val ROUTE_SCREENINGS = "screenings"
 private const val ROUTE_SCREENING_DETAILS = "screeningDetails/{$ARG_SCREENING_ID}"
 private const val ROUTE_ADMIN_PANEL = "adminPanel"
+private const val ROUTE_ADD_SCREENING = "addScreening"
 
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
@@ -68,6 +70,13 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             AdminPanelPage(
                 onUnauthorized = goToLogin,
                 onLogout = goToLogin,
+                onAddScreeningClick = { navController.navigate(ROUTE_ADD_SCREENING) },
+            )
+        }
+        composable(ROUTE_ADD_SCREENING) {
+            AddScreeningPage(
+                onScreeningAdded = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
             )
         }
     }

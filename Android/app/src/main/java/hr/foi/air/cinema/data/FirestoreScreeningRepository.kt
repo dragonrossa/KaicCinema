@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 
 private const val SCREENINGS_COLLECTION = "screenings"
 
@@ -39,5 +40,12 @@ class FirestoreScreeningRepository(
                 trySend(screening)
             }
         awaitClose { registration.remove() }
+    }
+
+    override suspend fun addScreening(screening: Screening): Result<Screening> = runCatching {
+        val screeningRef = firestore.collection(SCREENINGS_COLLECTION).document()
+        val screeningToSave = screening.copy(id = screeningRef.id)
+        screeningRef.set(screeningToSave).await()
+        screeningToSave
     }
 }
