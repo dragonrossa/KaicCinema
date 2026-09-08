@@ -30,10 +30,11 @@ import hr.foi.air.cinema.ui.auth.LogoutButton
 import hr.foi.air.cinema.ui.common.formatScreeningTime
 
 private const val FEATURE_MANAGE_SCREENINGS = "Upravljanje projekcijama"
+private const val FEATURE_PUBLISH_NEWS = "Objava novosti"
 
 private val ADMIN_FEATURES = listOf(
     FEATURE_MANAGE_SCREENINGS,
-    "Objava novosti",
+    FEATURE_PUBLISH_NEWS,
     "Odobravanje zahtjeva za rezervaciju",
 )
 
@@ -43,6 +44,7 @@ fun AdminPanelPage(
     onUnauthorized: () -> Unit,
     onLogout: () -> Unit,
     onManageScreeningsClick: () -> Unit,
+    onPublishNewsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AdminAccessViewModel = viewModel(),
     bookingsViewModel: AdminBookingsViewModel = viewModel(),
@@ -88,6 +90,7 @@ fun AdminPanelPage(
                     AdminPanelContent(
                         bookingsState = bookingsState,
                         onManageScreeningsClick = onManageScreeningsClick,
+                        onPublishNewsClick = onPublishNewsClick,
                     )
                 }
             }
@@ -99,7 +102,13 @@ fun AdminPanelPage(
 private fun AdminPanelContent(
     bookingsState: AdminBookingsUiState,
     onManageScreeningsClick: () -> Unit,
+    onPublishNewsClick: () -> Unit,
 ) {
+    val featureClickHandlers = mapOf(
+        FEATURE_MANAGE_SCREENINGS to onManageScreeningsClick,
+        FEATURE_PUBLISH_NEWS to onPublishNewsClick,
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -108,8 +117,9 @@ private fun AdminPanelContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ADMIN_FEATURES.forEach { feature ->
-            val clickModifier = if (feature == FEATURE_MANAGE_SCREENINGS) {
-                Modifier.clickable(onClick = onManageScreeningsClick)
+            val onFeatureClick = featureClickHandlers[feature]
+            val clickModifier = if (onFeatureClick != null) {
+                Modifier.clickable(onClick = onFeatureClick)
             } else {
                 Modifier
             }

@@ -18,6 +18,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,6 +38,7 @@ import hr.foi.air.cinema.ui.theme.CinemaTheme
 @Composable
 fun ScreeningsPage(
     onScreeningSelected: (String) -> Unit,
+    onNewsClick: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScreeningsViewModel = viewModel(),
@@ -48,7 +50,12 @@ fun ScreeningsPage(
         topBar = {
             TopAppBar(
                 title = { Text("Projekcije") },
-                actions = { LogoutButton(onLoggedOut = onLogout) },
+                actions = {
+                    TextButton(onClick = onNewsClick) {
+                        Text("Vijesti")
+                    }
+                    LogoutButton(onLoggedOut = onLogout)
+                },
             )
         },
     ) { innerPadding ->

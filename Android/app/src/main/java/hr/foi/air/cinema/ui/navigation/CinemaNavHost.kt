@@ -8,10 +8,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
 import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
 import hr.foi.air.cinema.ui.auth.LoginPage
+import hr.foi.air.cinema.ui.news.NewsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningsPage
 
@@ -22,6 +24,8 @@ private const val ROUTE_SCREENING_DETAILS = "screeningDetails/{$ARG_SCREENING_ID
 private const val ROUTE_ADMIN_PANEL = "adminPanel"
 private const val ROUTE_MANAGE_SCREENINGS = "manageScreenings"
 private const val ROUTE_ADD_SCREENING = "addScreening"
+private const val ROUTE_ADD_NEWS = "addNews"
+private const val ROUTE_NEWS = "news"
 
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
@@ -55,8 +59,12 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                 onScreeningSelected = { screeningId ->
                     navController.navigate("screeningDetails/$screeningId")
                 },
+                onNewsClick = { navController.navigate(ROUTE_NEWS) },
                 onLogout = goToLogin,
             )
+        }
+        composable(ROUTE_NEWS) {
+            NewsPage(onBackClick = { navController.popBackStack() })
         }
         composable(
             route = ROUTE_SCREENING_DETAILS,
@@ -73,6 +81,7 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                 onUnauthorized = goToLogin,
                 onLogout = goToLogin,
                 onManageScreeningsClick = { navController.navigate(ROUTE_MANAGE_SCREENINGS) },
+                onPublishNewsClick = { navController.navigate(ROUTE_ADD_NEWS) },
             )
         }
         composable(ROUTE_MANAGE_SCREENINGS) {
@@ -84,6 +93,12 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
         composable(ROUTE_ADD_SCREENING) {
             AddScreeningPage(
                 onScreeningAdded = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+        composable(ROUTE_ADD_NEWS) {
+            AddNewsPage(
+                onNewsPublished = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
