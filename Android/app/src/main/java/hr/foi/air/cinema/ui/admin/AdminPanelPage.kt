@@ -42,7 +42,7 @@ private val ADMIN_FEATURES = listOf(
 fun AdminPanelPage(
     onUnauthorized: () -> Unit,
     onLogout: () -> Unit,
-    onAddScreeningClick: () -> Unit,
+    onManageScreeningsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AdminAccessViewModel = viewModel(),
     bookingsViewModel: AdminBookingsViewModel = viewModel(),
@@ -87,7 +87,7 @@ fun AdminPanelPage(
                 is AdminAccessUiState.Authorized -> {
                     AdminPanelContent(
                         bookingsState = bookingsState,
-                        onAddScreeningClick = onAddScreeningClick,
+                        onManageScreeningsClick = onManageScreeningsClick,
                     )
                 }
             }
@@ -98,7 +98,7 @@ fun AdminPanelPage(
 @Composable
 private fun AdminPanelContent(
     bookingsState: AdminBookingsUiState,
-    onAddScreeningClick: () -> Unit,
+    onManageScreeningsClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -109,7 +109,7 @@ private fun AdminPanelContent(
     ) {
         ADMIN_FEATURES.forEach { feature ->
             val clickModifier = if (feature == FEATURE_MANAGE_SCREENINGS) {
-                Modifier.clickable(onClick = onAddScreeningClick)
+                Modifier.clickable(onClick = onManageScreeningsClick)
             } else {
                 Modifier
             }

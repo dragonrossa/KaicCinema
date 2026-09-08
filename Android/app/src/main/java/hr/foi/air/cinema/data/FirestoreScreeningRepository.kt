@@ -48,4 +48,8 @@ class FirestoreScreeningRepository(
         screeningRef.set(screeningToSave).await()
         screeningToSave
     }
+
+    override suspend fun deleteScreening(id: String): Result<Unit> = runCatching {
+        firestore.collection(SCREENINGS_COLLECTION).document(id).delete().await()
+    }
 }
