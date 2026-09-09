@@ -4,6 +4,7 @@ import hr.foi.air.cinema.data.FakeScreeningRepository
 import hr.foi.air.cinema.data.Screening
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -52,6 +53,32 @@ class ManageScreeningsViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is ManageScreeningsUiState.Success)
         assertEquals(screenings, (state as ManageScreeningsUiState.Success).screenings)
+    }
+
+    @Test
+    fun screeningsList_reflectsAdditionsAndDeletionsAsRepositoryEmitsNewSnapshots() = runTest {
+        val dune = Screening(id = "1", movieTitle = "Dune: Part Three")
+        val oppenheimer = Screening(id = "2", movieTitle = "Oppenheimer")
+        val screeningsFlow = MutableStateFlow(listOf(dune))
+        val viewModel = ManageScreeningsViewModel(
+            FakeScreeningRepository(screeningsFlow = screeningsFlow),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(dune), (viewModel.uiState.value as ManageScreeningsUiState.Success).screenings)
+
+        screeningsFlow.value = listOf(dune, oppenheimer)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            listOf(dune, oppenheimer),
+            (viewModel.uiState.value as ManageScreeningsUiState.Success).screenings,
+        )
+
+        screeningsFlow.value = listOf(oppenheimer)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(oppenheimer), (viewModel.uiState.value as ManageScreeningsUiState.Success).screenings)
     }
 
     @Test
