@@ -1,6 +1,8 @@
 package hr.foi.air.cinema.ui.admin
 
+import hr.foi.air.cinema.data.FakePurchaseRepository
 import hr.foi.air.cinema.data.FakeScreeningRepository
+import hr.foi.air.cinema.data.FakeTicketRepository
 import hr.foi.air.cinema.data.Screening
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +35,11 @@ class ManageScreeningsViewModelTest {
 
     @Test
     fun initialState_isLoading() {
-        val viewModel = ManageScreeningsViewModel(FakeScreeningRepository())
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = FakeScreeningRepository(),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
+        )
 
         assertEquals(ManageScreeningsUiState.Loading, viewModel.uiState.value)
     }
@@ -45,7 +51,9 @@ class ManageScreeningsViewModelTest {
             Screening(id = "2", movieTitle = "Oppenheimer"),
         )
         val viewModel = ManageScreeningsViewModel(
-            FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+            screeningRepository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -61,7 +69,9 @@ class ManageScreeningsViewModelTest {
         val oppenheimer = Screening(id = "2", movieTitle = "Oppenheimer")
         val screeningsFlow = MutableStateFlow(listOf(dune))
         val viewModel = ManageScreeningsViewModel(
-            FakeScreeningRepository(screeningsFlow = screeningsFlow),
+            screeningRepository = FakeScreeningRepository(screeningsFlow = screeningsFlow),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -84,9 +94,11 @@ class ManageScreeningsViewModelTest {
     @Test
     fun repositoryError_updatesStateToError() = runTest {
         val viewModel = ManageScreeningsViewModel(
-            FakeScreeningRepository(
+            screeningRepository = FakeScreeningRepository(
                 screeningsFlow = kotlinx.coroutines.flow.flow { throw RuntimeException("Greška pri dohvaćanju projekcija") },
             ),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -98,15 +110,23 @@ class ManageScreeningsViewModelTest {
 
     @Test
     fun initialDeleteState_isIdle() {
-        val viewModel = ManageScreeningsViewModel(FakeScreeningRepository())
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = FakeScreeningRepository(),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
+        )
 
         assertEquals(DeleteScreeningUiState.Idle, viewModel.deleteState.value)
     }
 
     @Test
-    fun deleteScreening_success_updatesDeleteStateToSuccessAndCallsRepository() = runTest {
+    fun deleteScreening_noActiveBookings_updatesDeleteStateToSuccessAndCallsRepository() = runTest {
         val repository = FakeScreeningRepository()
-        val viewModel = ManageScreeningsViewModel(repository)
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = repository,
+            ticketRepository = FakeTicketRepository(hasActiveReservationResult = Result.success(false)),
+            purchaseRepository = FakePurchaseRepository(hasPurchaseResult = Result.success(false)),
+        )
 
         viewModel.deleteScreening("1")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -118,7 +138,11 @@ class ManageScreeningsViewModelTest {
 
     @Test
     fun deleteScreening_setsInProgressStateForCorrectScreeningId() {
-        val viewModel = ManageScreeningsViewModel(FakeScreeningRepository())
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = FakeScreeningRepository(),
+            ticketRepository = FakeTicketRepository(),
+            purchaseRepository = FakePurchaseRepository(),
+        )
 
         viewModel.deleteScreening("42")
 
@@ -132,7 +156,11 @@ class ManageScreeningsViewModelTest {
         val repository = FakeScreeningRepository(
             deleteScreeningResult = { Result.failure(RuntimeException("Greška pri brisanju projekcije")) },
         )
-        val viewModel = ManageScreeningsViewModel(repository)
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = repository,
+            ticketRepository = FakeTicketRepository(hasActiveReservationResult = Result.success(false)),
+            purchaseRepository = FakePurchaseRepository(hasPurchaseResult = Result.success(false)),
+        )
 
         viewModel.deleteScreening("1")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -140,5 +168,59 @@ class ManageScreeningsViewModelTest {
         val state = viewModel.deleteState.value
         assertTrue(state is DeleteScreeningUiState.Error)
         assertEquals("Greška pri brisanju projekcije", (state as DeleteScreeningUiState.Error).message)
+    }
+
+    @Test
+    fun deleteScreening_hasActiveReservation_blocksDeletionAndDoesNotCallScreeningRepository() = runTest {
+        val repository = FakeScreeningRepository()
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = repository,
+            ticketRepository = FakeTicketRepository(hasActiveReservationResult = Result.success(true)),
+            purchaseRepository = FakePurchaseRepository(hasPurchaseResult = Result.success(false)),
+        )
+
+        viewModel.deleteScreening("1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.deleteState.value
+        assertTrue(state is DeleteScreeningUiState.Error)
+        assertEquals(0, repository.deleteScreeningCallCount)
+    }
+
+    @Test
+    fun deleteScreening_hasPurchase_blocksDeletionAndDoesNotCallScreeningRepository() = runTest {
+        val repository = FakeScreeningRepository()
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = repository,
+            ticketRepository = FakeTicketRepository(hasActiveReservationResult = Result.success(false)),
+            purchaseRepository = FakePurchaseRepository(hasPurchaseResult = Result.success(true)),
+        )
+
+        viewModel.deleteScreening("1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.deleteState.value
+        assertTrue(state is DeleteScreeningUiState.Error)
+        assertEquals(0, repository.deleteScreeningCallCount)
+    }
+
+    @Test
+    fun deleteScreening_bookingCheckFails_updatesDeleteStateToErrorWithoutCallingScreeningRepository() = runTest {
+        val repository = FakeScreeningRepository()
+        val viewModel = ManageScreeningsViewModel(
+            screeningRepository = repository,
+            ticketRepository = FakeTicketRepository(
+                hasActiveReservationResult = Result.failure(RuntimeException("Greška pri provjeri rezervacija")),
+            ),
+            purchaseRepository = FakePurchaseRepository(hasPurchaseResult = Result.success(false)),
+        )
+
+        viewModel.deleteScreening("1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.deleteState.value
+        assertTrue(state is DeleteScreeningUiState.Error)
+        assertEquals("Greška pri provjeri rezervacija", (state as DeleteScreeningUiState.Error).message)
+        assertEquals(0, repository.deleteScreeningCallCount)
     }
 }

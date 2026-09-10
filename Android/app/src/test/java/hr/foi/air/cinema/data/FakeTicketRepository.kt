@@ -7,6 +7,7 @@ class FakeTicketRepository(
     private val reserveResult: Result<Reservation> = Result.success(Reservation()),
     private val reservationFlow: Flow<Reservation?> = flowOf(null),
     private val reservationsFlow: Flow<List<Reservation>> = flowOf(emptyList()),
+    private val hasActiveReservationResult: Result<Boolean> = Result.success(false),
 ) : TicketRepository {
 
     var reserveTicketCallCount = 0
@@ -20,4 +21,6 @@ class FakeTicketRepository(
     override fun observeReservation(screeningId: String, userId: String): Flow<Reservation?> = reservationFlow
 
     override fun observeAllReservations(): Flow<List<Reservation>> = reservationsFlow
+
+    override suspend fun hasActiveReservationForScreening(screeningId: String): Result<Boolean> = hasActiveReservationResult
 }

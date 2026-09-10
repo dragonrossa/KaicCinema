@@ -70,4 +70,17 @@ class FirestoreTicketRepository(
             }
         awaitClose { registration.remove() }
     }
+
+    override suspend fun hasActiveReservationForScreening(screeningId: String): Result<Boolean> = runCatching {
+        val snapshot = firestore.collection(RESERVATIONS_COLLECTION)
+            .whereEqualTo(FIELD_SCREENING_ID, screeningId)
+            .get()
+            .await()
+        snapshot.documents.any { document ->
+            when (document.toObject(Reservation::class.java)?.status) {
+                ReservationStatus.PENDING, ReservationStatus.APPROVED -> true
+                else -> false
+            }
+        }
+    }
 }

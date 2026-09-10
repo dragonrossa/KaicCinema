@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.flowOf
 class FakePurchaseRepository(
     private val purchaseResult: Result<Purchase> = Result.success(Purchase()),
     private val purchasesFlow: Flow<List<Purchase>> = flowOf(emptyList()),
+    private val hasPurchaseResult: Result<Boolean> = Result.success(false),
 ) : PurchaseRepository {
 
     var purchaseTicketCallCount = 0
@@ -17,4 +18,6 @@ class FakePurchaseRepository(
     }
 
     override fun observeAllPurchases(): Flow<List<Purchase>> = purchasesFlow
+
+    override suspend fun hasPurchaseForScreening(screeningId: String): Result<Boolean> = hasPurchaseResult
 }

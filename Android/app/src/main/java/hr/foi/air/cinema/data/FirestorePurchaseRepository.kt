@@ -9,6 +9,7 @@ import kotlinx.coroutines.tasks.await
 private const val SCREENINGS_COLLECTION = "screenings"
 private const val PURCHASES_COLLECTION = "purchases"
 private const val FIELD_RESERVED_SEATS = "reservedSeats"
+private const val FIELD_SCREENING_ID = "screeningId"
 
 class FirestorePurchaseRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -50,5 +51,14 @@ class FirestorePurchaseRepository(
                 trySend(purchases)
             }
         awaitClose { registration.remove() }
+    }
+
+    override suspend fun hasPurchaseForScreening(screeningId: String): Result<Boolean> = runCatching {
+        val snapshot = firestore.collection(PURCHASES_COLLECTION)
+            .whereEqualTo(FIELD_SCREENING_ID, screeningId)
+            .limit(1)
+            .get()
+            .await()
+        !snapshot.isEmpty
     }
 }

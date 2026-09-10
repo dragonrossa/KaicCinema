@@ -2,14 +2,21 @@ package hr.foi.air.cinema.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import hr.foi.air.cinema.data.FirestorePurchaseRepository
 import hr.foi.air.cinema.data.FirestoreScreeningRepository
+import hr.foi.air.cinema.data.FirestoreTicketRepository
+import hr.foi.air.cinema.data.PurchaseRepository
 import hr.foi.air.cinema.data.Screening
 import hr.foi.air.cinema.data.ScreeningRepository
+import hr.foi.air.cinema.data.TicketRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+
+private const val MESSAGE_HAS_ACTIVE_BOOKINGS =
+    "Projekcija ima aktivne rezervacije ili kupljene ulaznice i ne može se obrisati."
 
 sealed interface ManageScreeningsUiState {
     data object Loading : ManageScreeningsUiState
@@ -26,6 +33,8 @@ sealed interface DeleteScreeningUiState {
 
 class ManageScreeningsViewModel(
     private val screeningRepository: ScreeningRepository = FirestoreScreeningRepository(),
+    private val ticketRepository: TicketRepository = FirestoreTicketRepository(),
+    private val purchaseRepository: PurchaseRepository = FirestorePurchaseRepository(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ManageScreeningsUiState>(ManageScreeningsUiState.Loading)
@@ -47,6 +56,22 @@ class ManageScreeningsViewModel(
     fun deleteScreening(screeningId: String) {
         _deleteState.value = DeleteScreeningUiState.InProgress(screeningId)
         viewModelScope.launch {
+            val hasActiveReservation = ticketRepository.hasActiveReservationForScreening(screeningId)
+            val hasPurchase = purchaseRepository.hasPurchaseForScreening(screeningId)
+
+            val checkFailure = hasActiveReservation.exceptionOrNull() ?: hasPurchase.exceptionOrNull()
+            if (checkFailure != null) {
+                _deleteState.value = DeleteScreeningUiState.Error(
+                    checkFailure.message ?: "Greška pri provjeri rezervacija i kupnji",
+                )
+                return@launch
+            }
+
+            if (hasActiveReservation.getOrDefault(false) || hasPurchase.getOrDefault(false)) {
+                _deleteState.value = DeleteScreeningUiState.Error(MESSAGE_HAS_ACTIVE_BOOKINGS)
+                return@launch
+            }
+
             screeningRepository.deleteScreening(screeningId)
                 .onSuccess { _deleteState.value = DeleteScreeningUiState.Success }
                 .onFailure { error ->

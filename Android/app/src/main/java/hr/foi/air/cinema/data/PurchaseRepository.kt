@@ -5,4 +5,5 @@ import kotlinx.coroutines.flow.Flow
 interface PurchaseRepository {
     suspend fun purchaseTicket(screeningId: String, userId: String): Result<Purchase>
     fun observeAllPurchases(): Flow<List<Purchase>>
+    suspend fun hasPurchaseForScreening(screeningId: String): Result<Boolean>
 }
