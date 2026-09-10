@@ -31,11 +31,12 @@ import hr.foi.air.cinema.ui.common.formatScreeningTime
 
 private const val FEATURE_MANAGE_SCREENINGS = "Upravljanje projekcijama"
 private const val FEATURE_PUBLISH_NEWS = "Objava novosti"
+private const val FEATURE_RESERVATION_REQUESTS = "Odobravanje zahtjeva za rezervaciju"
 
 private val ADMIN_FEATURES = listOf(
     FEATURE_MANAGE_SCREENINGS,
     FEATURE_PUBLISH_NEWS,
-    "Odobravanje zahtjeva za rezervaciju",
+    FEATURE_RESERVATION_REQUESTS,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +46,7 @@ fun AdminPanelPage(
     onLogout: () -> Unit,
     onManageScreeningsClick: () -> Unit,
     onPublishNewsClick: () -> Unit,
+    onViewReservationRequestsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AdminAccessViewModel = viewModel(),
     bookingsViewModel: AdminBookingsViewModel = viewModel(),
@@ -91,6 +93,7 @@ fun AdminPanelPage(
                         bookingsState = bookingsState,
                         onManageScreeningsClick = onManageScreeningsClick,
                         onPublishNewsClick = onPublishNewsClick,
+                        onViewReservationRequestsClick = onViewReservationRequestsClick,
                     )
                 }
             }
@@ -103,10 +106,12 @@ private fun AdminPanelContent(
     bookingsState: AdminBookingsUiState,
     onManageScreeningsClick: () -> Unit,
     onPublishNewsClick: () -> Unit,
+    onViewReservationRequestsClick: () -> Unit,
 ) {
     val featureClickHandlers = mapOf(
         FEATURE_MANAGE_SCREENINGS to onManageScreeningsClick,
         FEATURE_PUBLISH_NEWS to onPublishNewsClick,
+        FEATURE_RESERVATION_REQUESTS to onViewReservationRequestsClick,
     )
 
     Column(

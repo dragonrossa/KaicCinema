@@ -12,6 +12,7 @@ import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
 import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
+import hr.foi.air.cinema.ui.admin.ReservationRequestsPage
 import hr.foi.air.cinema.ui.auth.LoginPage
 import hr.foi.air.cinema.ui.news.NewsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
@@ -26,6 +27,7 @@ private const val ROUTE_MANAGE_SCREENINGS = "manageScreenings"
 private const val ROUTE_ADD_SCREENING = "addScreening"
 private const val ROUTE_ADD_NEWS = "addNews"
 private const val ROUTE_NEWS = "news"
+private const val ROUTE_RESERVATION_REQUESTS = "reservationRequests"
 
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
@@ -82,7 +84,11 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                 onLogout = goToLogin,
                 onManageScreeningsClick = { navController.navigate(ROUTE_MANAGE_SCREENINGS) },
                 onPublishNewsClick = { navController.navigate(ROUTE_ADD_NEWS) },
+                onViewReservationRequestsClick = { navController.navigate(ROUTE_RESERVATION_REQUESTS) },
             )
+        }
+        composable(ROUTE_RESERVATION_REQUESTS) {
+            ReservationRequestsPage(onBackClick = { navController.popBackStack() })
         }
         composable(ROUTE_MANAGE_SCREENINGS) {
             ManageScreeningsPage(
