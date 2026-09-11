@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,11 +18,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,8 @@ fun ReservationRequestsPage(
     viewModel: ReservationRequestsViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val approveState by viewModel.approveState.collectAsState()
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     Scaffold(
         modifier = modifier,
@@ -51,27 +59,54 @@ fun ReservationRequestsPage(
             )
         },
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize(),
         ) {
-            when (val state = uiState) {
-                is ReservationRequestsUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
+            TabRow(selectedTabIndex = selectedTabIndex) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = { Text("Zahtjevi") },
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = { Text("Odobreno") },
+                )
+            }
 
-                is ReservationRequestsUiState.Error -> {
-                    Text(
-                        text = state.message,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                    )
-                }
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (val state = uiState) {
+                    is ReservationRequestsUiState.Loading -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
 
-                is ReservationRequestsUiState.Success -> {
-                    ReservationRequestsList(requests = state.requests)
+                    is ReservationRequestsUiState.Error -> {
+                        Text(
+                            text = state.message,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                        )
+                    }
+
+                    is ReservationRequestsUiState.Success -> {
+                        val statusFilter = if (selectedTabIndex == 0) ReservationStatus.PENDING else ReservationStatus.APPROVED
+                        val filteredRequests = state.requests.filter { it.reservation.status == statusFilter }
+                        val emptyMessage = if (selectedTabIndex == 0) {
+                            "Trenutno nema zahtjeva za rezervaciju"
+                        } else {
+                            "Trenutno nema odobrenih rezervacija"
+                        }
+                        ReservationRequestsList(
+                            requests = filteredRequests,
+                            emptyMessage = emptyMessage,
+                            approveState = approveState,
+                            onApproveClick = viewModel::approveReservation,
+                        )
+                    }
                 }
             }
         }
@@ -79,11 +114,16 @@ fun ReservationRequestsPage(
 }
 
 @Composable
-private fun ReservationRequestsList(requests: List<ReservationRequest>) {
+private fun ReservationRequestsList(
+    requests: List<ReservationRequest>,
+    emptyMessage: String,
+    approveState: ApproveReservationUiState,
+    onApproveClick: (String) -> Unit,
+) {
     if (requests.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
             Text(
-                text = "Trenutno nema zahtjeva za rezervaciju",
+                text = emptyMessage,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(16.dp),
@@ -97,12 +137,24 @@ private fun ReservationRequestsList(requests: List<ReservationRequest>) {
             .fillMaxSize()
             .padding(16.dp),
     ) {
-        items(requests, key = { it.reservation.id }) { request -> ReservationRequestCard(request) }
+        items(requests, key = { it.reservation.id }) { request ->
+            val isApproving = approveState is ApproveReservationUiState.InProgress &&
+                approveState.reservationId == request.reservation.id
+            ReservationRequestCard(
+                request = request,
+                isApproving = isApproving,
+                onApproveClick = { onApproveClick(request.reservation.id) },
+            )
+        }
     }
 }
 
 @Composable
-private fun ReservationRequestCard(request: ReservationRequest) {
+private fun ReservationRequestCard(
+    request: ReservationRequest,
+    isApproving: Boolean,
+    onApproveClick: () -> Unit,
+) {
     val (statusLabel, statusColor) = when (request.reservation.status) {
         ReservationStatus.PENDING -> "Na čekanju" to MaterialTheme.colorScheme.tertiary
         ReservationStatus.APPROVED -> "Odobreno" to MaterialTheme.colorScheme.primary
@@ -131,6 +183,16 @@ private fun ReservationRequestCard(request: ReservationRequest) {
             Text(text = "Korisnik: ${request.reservation.userId}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Zatraženo: ${formatScreeningTime(request.reservation.createdAt)}", style = MaterialTheme.typography.bodySmall)
             Text(text = statusLabel, color = statusColor, style = MaterialTheme.typography.labelLarge)
+
+            if (request.reservation.status == ReservationStatus.PENDING) {
+                Button(onClick = onApproveClick, enabled = !isApproving) {
+                    if (isApproving) {
+                        CircularProgressIndicator(modifier = Modifier.padding(2.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Odobri")
+                    }
+                }
+            }
         }
     }
 }

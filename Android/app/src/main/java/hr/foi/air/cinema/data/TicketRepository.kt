@@ -7,4 +7,5 @@ interface TicketRepository {
     fun observeReservation(screeningId: String, userId: String): Flow<Reservation?>
     fun observeAllReservations(): Flow<List<Reservation>>
     suspend fun hasActiveReservationForScreening(screeningId: String): Result<Boolean>
+    suspend fun updateReservationStatus(reservationId: String, status: ReservationStatus): Result<Unit>
 }

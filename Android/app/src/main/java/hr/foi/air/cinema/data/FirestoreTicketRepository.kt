@@ -11,6 +11,7 @@ private const val RESERVATIONS_COLLECTION = "reservations"
 private const val FIELD_SCREENING_ID = "screeningId"
 private const val FIELD_USER_ID = "userId"
 private const val FIELD_RESERVED_SEATS = "reservedSeats"
+private const val FIELD_STATUS = "status"
 
 class FirestoreTicketRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -82,5 +83,11 @@ class FirestoreTicketRepository(
                 else -> false
             }
         }
+    }
+
+    override suspend fun updateReservationStatus(reservationId: String, status: ReservationStatus): Result<Unit> = runCatching {
+        firestore.collection(RESERVATIONS_COLLECTION).document(reservationId)
+            .update(FIELD_STATUS, status.name)
+            .await()
     }
 }

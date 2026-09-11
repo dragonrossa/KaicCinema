@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import hr.foi.air.cinema.data.FirestoreScreeningRepository
 import hr.foi.air.cinema.data.FirestoreTicketRepository
 import hr.foi.air.cinema.data.Reservation
+import hr.foi.air.cinema.data.ReservationStatus
 import hr.foi.air.cinema.data.Screening
 import hr.foi.air.cinema.data.ScreeningRepository
 import hr.foi.air.cinema.data.TicketRepository
@@ -26,6 +27,13 @@ sealed interface ReservationRequestsUiState {
     data class Error(val message: String) : ReservationRequestsUiState
 }
 
+sealed interface ApproveReservationUiState {
+    data object Idle : ApproveReservationUiState
+    data class InProgress(val reservationId: String) : ApproveReservationUiState
+    data object Success : ApproveReservationUiState
+    data class Error(val message: String) : ApproveReservationUiState
+}
+
 class ReservationRequestsViewModel(
     private val ticketRepository: TicketRepository = FirestoreTicketRepository(),
     private val screeningRepository: ScreeningRepository = FirestoreScreeningRepository(),
@@ -33,6 +41,9 @@ class ReservationRequestsViewModel(
 
     private val _uiState = MutableStateFlow<ReservationRequestsUiState>(ReservationRequestsUiState.Loading)
     val uiState: StateFlow<ReservationRequestsUiState> = _uiState.asStateFlow()
+
+    private val _approveState = MutableStateFlow<ApproveReservationUiState>(ApproveReservationUiState.Idle)
+    val approveState: StateFlow<ApproveReservationUiState> = _approveState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -50,6 +61,19 @@ class ReservationRequestsViewModel(
                     emit(ReservationRequestsUiState.Error(error.message ?: "Greška pri dohvaćanju zahtjeva za rezervaciju"))
                 }
                 .collect { _uiState.value = it }
+        }
+    }
+
+    fun approveReservation(reservationId: String) {
+        _approveState.value = ApproveReservationUiState.InProgress(reservationId)
+        viewModelScope.launch {
+            ticketRepository.updateReservationStatus(reservationId, ReservationStatus.APPROVED)
+                .onSuccess { _approveState.value = ApproveReservationUiState.Success }
+                .onFailure { error ->
+                    _approveState.value = ApproveReservationUiState.Error(
+                        error.message ?: "Greška pri odobravanju rezervacije",
+                    )
+                }
         }
     }
 }
