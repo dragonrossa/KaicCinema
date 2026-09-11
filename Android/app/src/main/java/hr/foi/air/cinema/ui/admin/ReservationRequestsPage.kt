@@ -3,6 +3,7 @@ package hr.foi.air.cinema.ui.admin
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -44,6 +46,7 @@ fun ReservationRequestsPage(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val approveState by viewModel.approveState.collectAsState()
+    val rejectState by viewModel.rejectState.collectAsState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -104,7 +107,9 @@ fun ReservationRequestsPage(
                             requests = filteredRequests,
                             emptyMessage = emptyMessage,
                             approveState = approveState,
+                            rejectState = rejectState,
                             onApproveClick = viewModel::approveReservation,
+                            onRejectClick = viewModel::rejectReservation,
                         )
                     }
                 }
@@ -118,7 +123,9 @@ private fun ReservationRequestsList(
     requests: List<ReservationRequest>,
     emptyMessage: String,
     approveState: ApproveReservationUiState,
+    rejectState: RejectReservationUiState,
     onApproveClick: (String) -> Unit,
+    onRejectClick: (String) -> Unit,
 ) {
     if (requests.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -140,10 +147,14 @@ private fun ReservationRequestsList(
         items(requests, key = { it.reservation.id }) { request ->
             val isApproving = approveState is ApproveReservationUiState.InProgress &&
                 approveState.reservationId == request.reservation.id
+            val isRejecting = rejectState is RejectReservationUiState.InProgress &&
+                rejectState.reservationId == request.reservation.id
             ReservationRequestCard(
                 request = request,
                 isApproving = isApproving,
+                isRejecting = isRejecting,
                 onApproveClick = { onApproveClick(request.reservation.id) },
+                onRejectClick = { onRejectClick(request.reservation.id) },
             )
         }
     }
@@ -153,7 +164,9 @@ private fun ReservationRequestsList(
 private fun ReservationRequestCard(
     request: ReservationRequest,
     isApproving: Boolean,
+    isRejecting: Boolean,
     onApproveClick: () -> Unit,
+    onRejectClick: () -> Unit,
 ) {
     val (statusLabel, statusColor) = when (request.reservation.status) {
         ReservationStatus.PENDING -> "Na čekanju" to MaterialTheme.colorScheme.tertiary
@@ -185,11 +198,20 @@ private fun ReservationRequestCard(
             Text(text = statusLabel, color = statusColor, style = MaterialTheme.typography.labelLarge)
 
             if (request.reservation.status == ReservationStatus.PENDING) {
-                Button(onClick = onApproveClick, enabled = !isApproving) {
-                    if (isApproving) {
-                        CircularProgressIndicator(modifier = Modifier.padding(2.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text("Odobri")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onApproveClick, enabled = !isApproving && !isRejecting) {
+                        if (isApproving) {
+                            CircularProgressIndicator(modifier = Modifier.padding(2.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Odobri")
+                        }
+                    }
+                    OutlinedButton(onClick = onRejectClick, enabled = !isApproving && !isRejecting) {
+                        if (isRejecting) {
+                            CircularProgressIndicator(modifier = Modifier.padding(2.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Odbij")
+                        }
                     }
                 }
             }

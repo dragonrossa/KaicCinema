@@ -185,4 +185,62 @@ class ReservationRequestsViewModelTest {
         assertTrue(state is ApproveReservationUiState.Error)
         assertEquals("Greška pri odobravanju rezervacije", (state as ApproveReservationUiState.Error).message)
     }
+
+    @Test
+    fun initialRejectState_isIdle() {
+        val viewModel = ReservationRequestsViewModel(
+            ticketRepository = FakeTicketRepository(),
+            screeningRepository = FakeScreeningRepository(),
+        )
+
+        assertEquals(RejectReservationUiState.Idle, viewModel.rejectState.value)
+    }
+
+    @Test
+    fun rejectReservation_success_updatesStateToSuccessAndUpdatesStatusToRejected() = runTest {
+        val ticketRepository = FakeTicketRepository()
+        val viewModel = ReservationRequestsViewModel(
+            ticketRepository = ticketRepository,
+            screeningRepository = FakeScreeningRepository(),
+        )
+
+        viewModel.rejectReservation("res-1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(RejectReservationUiState.Success, viewModel.rejectState.value)
+        assertEquals(1, ticketRepository.updateReservationStatusCallCount)
+        assertEquals("res-1", ticketRepository.lastUpdatedReservationId)
+        assertEquals(ReservationStatus.REJECTED, ticketRepository.lastUpdatedReservationStatus)
+    }
+
+    @Test
+    fun rejectReservation_setsInProgressStateForCorrectReservationId() {
+        val viewModel = ReservationRequestsViewModel(
+            ticketRepository = FakeTicketRepository(),
+            screeningRepository = FakeScreeningRepository(),
+        )
+
+        viewModel.rejectReservation("res-42")
+
+        val state = viewModel.rejectState.value
+        assertTrue(state is RejectReservationUiState.InProgress)
+        assertEquals("res-42", (state as RejectReservationUiState.InProgress).reservationId)
+    }
+
+    @Test
+    fun rejectReservation_repositoryError_updatesStateToError() = runTest {
+        val viewModel = ReservationRequestsViewModel(
+            ticketRepository = FakeTicketRepository(
+                updateReservationStatusResult = Result.failure(RuntimeException("Greška pri odbijanju rezervacije")),
+            ),
+            screeningRepository = FakeScreeningRepository(),
+        )
+
+        viewModel.rejectReservation("res-1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.rejectState.value
+        assertTrue(state is RejectReservationUiState.Error)
+        assertEquals("Greška pri odbijanju rezervacije", (state as RejectReservationUiState.Error).message)
+    }
 }

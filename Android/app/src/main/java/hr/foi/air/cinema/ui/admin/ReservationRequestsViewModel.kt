@@ -34,6 +34,13 @@ sealed interface ApproveReservationUiState {
     data class Error(val message: String) : ApproveReservationUiState
 }
 
+sealed interface RejectReservationUiState {
+    data object Idle : RejectReservationUiState
+    data class InProgress(val reservationId: String) : RejectReservationUiState
+    data object Success : RejectReservationUiState
+    data class Error(val message: String) : RejectReservationUiState
+}
+
 class ReservationRequestsViewModel(
     private val ticketRepository: TicketRepository = FirestoreTicketRepository(),
     private val screeningRepository: ScreeningRepository = FirestoreScreeningRepository(),
@@ -44,6 +51,9 @@ class ReservationRequestsViewModel(
 
     private val _approveState = MutableStateFlow<ApproveReservationUiState>(ApproveReservationUiState.Idle)
     val approveState: StateFlow<ApproveReservationUiState> = _approveState.asStateFlow()
+
+    private val _rejectState = MutableStateFlow<RejectReservationUiState>(RejectReservationUiState.Idle)
+    val rejectState: StateFlow<RejectReservationUiState> = _rejectState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -72,6 +82,19 @@ class ReservationRequestsViewModel(
                 .onFailure { error ->
                     _approveState.value = ApproveReservationUiState.Error(
                         error.message ?: "Greška pri odobravanju rezervacije",
+                    )
+                }
+        }
+    }
+
+    fun rejectReservation(reservationId: String) {
+        _rejectState.value = RejectReservationUiState.InProgress(reservationId)
+        viewModelScope.launch {
+            ticketRepository.updateReservationStatus(reservationId, ReservationStatus.REJECTED)
+                .onSuccess { _rejectState.value = RejectReservationUiState.Success }
+                .onFailure { error ->
+                    _rejectState.value = RejectReservationUiState.Error(
+                        error.message ?: "Greška pri odbijanju rezervacije",
                     )
                 }
         }
