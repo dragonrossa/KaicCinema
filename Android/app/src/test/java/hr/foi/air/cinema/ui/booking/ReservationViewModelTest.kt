@@ -6,6 +6,7 @@ import hr.foi.air.cinema.data.Reservation
 import hr.foi.air.cinema.data.ReservationStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -164,6 +165,42 @@ class ReservationViewModelTest {
         val state = viewModel.reservationStatus.value
         assertTrue(state is ReservationStatusUiState.Active)
         assertEquals(ReservationStatus.REJECTED, (state as ReservationStatusUiState.Active).status)
+    }
+
+    @Test
+    fun reservationStatus_updatesLiveWhenAdministratorChangesDecision() = runTest {
+        // SCRUM-100: the user-facing status must reflect the admin's decision as soon as
+        // it changes in Firestore, without any manual refresh - simulated here via successive
+        // emissions from the same live reservation flow.
+        val pending = Reservation(id = "res-1", screeningId = "1", userId = "test-uid", status = ReservationStatus.PENDING)
+        val reservationFlow = MutableStateFlow<Reservation?>(pending)
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reservationFlow = reservationFlow),
+            authRepository = FakeAuthRepository(),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            ReservationStatusUiState.Active(ReservationStatus.PENDING),
+            viewModel.reservationStatus.value,
+        )
+
+        reservationFlow.value = pending.copy(status = ReservationStatus.APPROVED)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            ReservationStatusUiState.Active(ReservationStatus.APPROVED),
+            viewModel.reservationStatus.value,
+        )
+
+        reservationFlow.value = pending.copy(status = ReservationStatus.REJECTED)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            ReservationStatusUiState.Active(ReservationStatus.REJECTED),
+            viewModel.reservationStatus.value,
+        )
     }
 
     @Test
