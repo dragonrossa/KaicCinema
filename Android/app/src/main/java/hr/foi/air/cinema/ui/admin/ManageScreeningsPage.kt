@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +44,7 @@ import hr.foi.air.cinema.ui.common.formatScreeningTime
 @Composable
 fun ManageScreeningsPage(
     onAddScreeningClick: () -> Unit,
+    onEditScreeningClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ManageScreeningsViewModel = viewModel(),
@@ -124,6 +126,7 @@ fun ManageScreeningsPage(
                         ManageScreeningsList(
                             screenings = state.screenings,
                             deleteState = deleteState,
+                            onEditClick = { screening -> onEditScreeningClick(screening.id) },
                             onDeleteClick = { screening -> screeningPendingDeletion = screening },
                         )
                     }
@@ -137,6 +140,7 @@ fun ManageScreeningsPage(
 private fun ManageScreeningsList(
     screenings: List<Screening>,
     deleteState: DeleteScreeningUiState,
+    onEditClick: (Screening) -> Unit,
     onDeleteClick: (Screening) -> Unit,
 ) {
     if (screenings.isEmpty()) {
@@ -161,6 +165,7 @@ private fun ManageScreeningsList(
             ManageScreeningRow(
                 screening = screening,
                 isDeleting = isDeleting,
+                onEditClick = { onEditClick(screening) },
                 onDeleteClick = { onDeleteClick(screening) },
             )
         }
@@ -171,6 +176,7 @@ private fun ManageScreeningsList(
 private fun ManageScreeningRow(
     screening: Screening,
     isDeleting: Boolean,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
@@ -188,8 +194,13 @@ private fun ManageScreeningRow(
             if (isDeleting) {
                 CircularProgressIndicator(modifier = Modifier.padding(8.dp))
             } else {
-                IconButton(onClick = onDeleteClick) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Obriši projekciju")
+                Row {
+                    IconButton(onClick = onEditClick) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Uredi projekciju")
+                    }
+                    IconButton(onClick = onDeleteClick) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Obriši projekciju")
+                    }
                 }
             }
         }

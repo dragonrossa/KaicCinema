@@ -7,12 +7,17 @@ class FakeScreeningRepository(
     private val screeningsFlow: Flow<List<Screening>> = flowOf(emptyList()),
     private val screeningFlow: Flow<Screening?> = flowOf(null),
     private val addScreeningResult: (Screening) -> Result<Screening> = { Result.success(it) },
+    private val updateScreeningResult: (Screening) -> Result<Screening> = { Result.success(it) },
     private val deleteScreeningResult: (String) -> Result<Unit> = { Result.success(Unit) },
 ) : ScreeningRepository {
 
     var addScreeningCallCount = 0
         private set
     var lastAddedScreening: Screening? = null
+        private set
+    var updateScreeningCallCount = 0
+        private set
+    var lastUpdatedScreening: Screening? = null
         private set
     var deleteScreeningCallCount = 0
         private set
@@ -27,6 +32,12 @@ class FakeScreeningRepository(
         addScreeningCallCount++
         lastAddedScreening = screening
         return addScreeningResult(screening)
+    }
+
+    override suspend fun updateScreening(screening: Screening): Result<Screening> {
+        updateScreeningCallCount++
+        lastUpdatedScreening = screening
+        return updateScreeningResult(screening)
     }
 
     override suspend fun deleteScreening(id: String): Result<Unit> {
