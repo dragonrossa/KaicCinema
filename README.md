@@ -25,6 +25,30 @@ org.gradle.java.home=/apsolutna/putanja/do/tvog/jdk21
 
 Ovo prisiljava Gradle da uvijek koristi taj JDK, neovisno o tome što IDE-ov "Gradle JDK" profil tiho promijeni ispod istog naziva.
 
+## Rješavanje problema s Android emulatorom
+
+Dva poznata problema s emulatorom nemaju veze s kodom aplikacije — ako naiđeš na njih, ne treba ih ponovno dijagnosticirati, samo primijeni fix ispod.
+
+### "Network error" / DNS ne radi na emulatoru
+
+**Simptom:** login ili bilo koji Firebase poziv puca s "A network error (such as timeout, interrupted connection or unreachable host) has occurred", iako računalo ima normalan internet. U logcatu se vidi `UnknownHostException: Unable to resolve host` za sve domene (npr. `www.google.com`), dok `adb shell ping -c 2 8.8.8.8` (sirovi IP) prolazi bez problema.
+
+**Uzrok:** interni DNS proxy emulatora (`10.0.2.3`, dio QEMU virtualne mreže) povremeno zaglavi, obično nakon dužeg rada emulatora ili buđenja računala iz spavanja. Ne popravlja se togglanjem WiFi-a unutar emulatora (`svc wifi disable/enable`) jer je problem na nižem, QEMU sloju.
+
+**Fix:** restartaj emulator (cold boot):
+- Iz Android Studija: **Device Manager** → strelica dolje pored emulatora → **Cold Boot Now**
+- Ili iz terminala: `adb -s <device> emu kill`, pa ponovno pokreni emulator
+
+Nakon restarta provjeri DNS prije nego nastaviš testirati: `adb shell ping -c 2 www.google.com`.
+
+### Emulator se ne pokreće / "Running multiple emulators with the same AVD"
+
+**Simptom:** emulator se ugasi sam od sebe, ne pojavi se u `adb devices`, ili se u logu pojavi `FATAL | Running multiple emulators with the same AVD is an experimental feature` iako nijedan drugi emulator vidljivo ne radi.
+
+**Uzrok:** nedostatak RAM-a/swapa na računalu (emulator je težak proces) — ne stvarni sukob dviju instanci. Provjeri swap: `sysctl vm.swapusage` — ako je gotovo pun, to je uzrok.
+
+**Fix:** prije pokretanja emulatora zatvori memorijski zahtjevne aplikacije koje trenutno ne trebaš (puno Chrome tabova, Teams, Word, Remote Desktop Manager i sl.), zatim pokreni/restartaj emulator iz Android Studija (Device Manager).
+
 ## Firestore security rules
 
 Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju se ručno objaviti u Firebase Console (Firestore Database → Rules → Publish) — repozitorij nema Firebase CLI/`firebase.json` postavljen za automatski deploy.
