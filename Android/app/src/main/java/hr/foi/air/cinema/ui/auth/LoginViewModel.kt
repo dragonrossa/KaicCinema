@@ -3,7 +3,9 @@ package hr.foi.air.cinema.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import hr.foi.air.cinema.data.AuthRepository
+import hr.foi.air.cinema.data.FcmTokenProvider
 import hr.foi.air.cinema.data.FirebaseAuthRepository
+import hr.foi.air.cinema.data.FirebaseFcmTokenProvider
 import hr.foi.air.cinema.data.FirestoreUserRepository
 import hr.foi.air.cinema.data.UserRepository
 import hr.foi.air.cinema.data.UserRole
@@ -22,6 +24,7 @@ sealed interface LoginUiState {
 class LoginViewModel(
     private val authRepository: AuthRepository = FirebaseAuthRepository(),
     private val userRepository: UserRepository = FirestoreUserRepository(),
+    private val fcmTokenProvider: FcmTokenProvider = FirebaseFcmTokenProvider(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -47,8 +50,15 @@ class LoginViewModel(
             ?: return LoginUiState.Error("Prijava nije uspjela")
 
         return userRepository.getUserRole(uid).fold(
-            onSuccess = { role -> LoginUiState.Success(role) },
+            onSuccess = { role ->
+                registerFcmToken(uid)
+                LoginUiState.Success(role)
+            },
             onFailure = { error -> LoginUiState.Error(error.message ?: "Greška pri dohvaćanju korisničke uloge") },
         )
+    }
+
+    private suspend fun registerFcmToken(uid: String) {
+        fcmTokenProvider.getToken().onSuccess { token -> userRepository.updateFcmToken(uid, token) }
     }
 }

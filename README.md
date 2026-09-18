@@ -67,6 +67,50 @@ Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju 
 
 Trenutno pokrivene kolekcije: `users`, `screenings`, `reservations`, `purchases`, `news`.
 
+## Push notifikacije (Cloud Functions)
+
+`functions/` je zaseban Node.js modul (Cloud Functions, 2nd gen) koji šalje FCM push notifikaciju korisniku kad admin odobri/odbije njegovu rezervaciju. Trigeriran je na `onDocumentUpdated` za `reservations/{reservationId}` (vidi `functions/index.js`).
+
+### Priprema
+
+```
+cd functions
+npm install
+```
+
+### Testiranje
+
+**Logika triggera (besplatno, lokalno, bez interneta):**
+
+```
+npm test
+```
+
+Jest testovi (`functions/index.test.js`) pokrivaju `buildReservationDecisionMessage` i `handleReservationStatusChange` kroz injektirane fakeove za Firestore/Messaging — ne zahtijevaju stvarni Firebase projekt.
+
+Za integracijsku provjeru da se trigger stvarno okida na promjenu statusa (i čita ispravne dokumente), koristi Firebase Local Emulator Suite iz root mape repozitorija:
+
+```
+firebase emulators:start --only functions,firestore --project=demo-cinema
+```
+
+⚠️ **Bitno ograničenje:** Emulator Suite **nema FCM emulator** — sam `getMessaging().send()` poziv unutar funkcije uvijek pokušava kontaktirati stvarni Google servis i treba prava produkcijska vjerodajnica, pa će u emulatoru visjeti ~60s i timeoutirati na tom koraku. Emulator je koristan samo za potvrdu da se trigger okida i čita prave podatke (`before`/`after` status, `userId`, `screeningId`) — ne za stvarnu isporuku notifikacije.
+
+**Stvarna isporuka na uređaj (bez deploya, potpuno besplatno):** FCM slanje ne zahtijeva Blaze plan, samo Cloud Functions to traže. Da provjeriš da Android klijent (`CinemaMessagingService`, dopuštenje, notifikacijski kanal) stvarno prima i prikazuje notifikaciju:
+
+1. Prijavi se u app na uređaju/emulatoru — token se sprema u `users/{uid}.fcmToken` u Firestore
+2. Firebase Console → Firestore Database → `users/{uid}` → kopiraj `fcmToken`
+3. Firebase Console → Messaging → New notification → **Firebase Notification messages** (ne "In-App messages", to je drugi SDK koji nije integriran) → "Test on device" → zalijepi token, pritisni Enter/"+" da se doda na listu → Test
+
+### Deploy (zahtijeva Blaze plan)
+
+Cloud Functions rade samo na Firebase **Blaze** (pay-as-you-go) planu — provjeri to u Firebase Console prije deploya. Sam FCM je besplatan; Cloud Functions imaju generozan free tier, pa je stvarni trošak za ovakav mali projekt tipično $0, ali Blaze i dalje zahtijeva dodanu karticu na projekt.
+
+```
+firebase login
+firebase deploy --only functions
+```
+
 ## Seedanje test podataka u Firestore
 
 `firestore-seed` je zaseban Gradle/Kotlin modul koji jednom naredbom puni `screenings` kolekciju sa setom test projekcija (različite kategorije, views, popularity, broj mjesta), umjesto ručnog unosa kroz Firebase konzolu.

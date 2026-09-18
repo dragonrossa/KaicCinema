@@ -5,3 +5,12 @@
 firestore-seed/*serviceAccount*.json
 firestore-seed/.gradle
 firestore-seed/build
+
+# Cloud Functions
+functions/node_modules
+functions/*serviceAccount*.json
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+.runtimeconfig.json
