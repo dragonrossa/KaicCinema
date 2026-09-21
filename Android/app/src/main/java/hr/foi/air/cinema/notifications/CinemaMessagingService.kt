@@ -2,11 +2,14 @@ package hr.foi.air.cinema.notifications
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import hr.foi.air.cinema.MainActivity
 import hr.foi.air.cinema.R
 import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestoreUserRepository
@@ -14,7 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-const val RESERVATION_STATUS_CHANNEL_ID = "reservation_status"
+const val CINEMA_NOTIFICATIONS_CHANNEL_ID = "cinema_notifications"
 
 class CinemaMessagingService : FirebaseMessagingService() {
 
@@ -37,23 +40,31 @@ class CinemaMessagingService : FirebaseMessagingService() {
 
     private fun showNotification(title: String, body: String) {
         ensureNotificationChannel()
-        val notification = NotificationCompat.Builder(this, RESERVATION_STATUS_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CINEMA_NOTIFICATIONS_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openAppPendingIntent())
             .build()
 
         ContextCompat.getSystemService(this, NotificationManager::class.java)
             ?.notify(System.currentTimeMillis().toInt(), notification)
     }
 
+    private fun openAppPendingIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+    }
+
     private fun ensureNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(
-            RESERVATION_STATUS_CHANNEL_ID,
-            getString(R.string.reservation_status_channel_name),
+            CINEMA_NOTIFICATIONS_CHANNEL_ID,
+            getString(R.string.cinema_notifications_channel_name),
             NotificationManager.IMPORTANCE_HIGH,
         )
         ContextCompat.getSystemService(this, NotificationManager::class.java)

@@ -1,4 +1,10 @@
-const { buildReservationDecisionMessage, handleReservationStatusChange } = require("./index");
+const {
+  buildReservationDecisionMessage,
+  handleReservationStatusChange,
+  buildNewScreeningMessage,
+  handleScreeningCreated,
+  NEW_SCREENINGS_TOPIC,
+} = require("./index");
 
 describe("buildReservationDecisionMessage", () => {
   test("approved status returns approval message with movie title", () => {
@@ -140,5 +146,43 @@ describe("handleReservationStatusChange", () => {
     await handleReservationStatusChange({ status: "PENDING" }, undefined, deps);
 
     expect(deps.messaging.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildNewScreeningMessage", () => {
+  test("returns a title and body containing the movie title", () => {
+    const message = buildNewScreeningMessage("Dune: Part Three");
+
+    expect(message.title).toBe("Nova projekcija");
+    expect(message.body).toContain("Dune: Part Three");
+  });
+});
+
+describe("handleScreeningCreated", () => {
+  test("sends a notification to the new screenings topic", async () => {
+    const send = jest.fn().mockResolvedValue("message-id");
+
+    await handleScreeningCreated({ movieTitle: "Dune: Part Three" }, { messaging: { send } });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const [[payload]] = send.mock.calls;
+    expect(payload.topic).toBe(NEW_SCREENINGS_TOPIC);
+    expect(payload.notification.body).toContain("Dune: Part Three");
+  });
+
+  test("does not send when screening data is missing", async () => {
+    const send = jest.fn().mockResolvedValue("message-id");
+
+    await handleScreeningCreated(undefined, { messaging: { send } });
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  test("does not send when movie title is missing", async () => {
+    const send = jest.fn().mockResolvedValue("message-id");
+
+    await handleScreeningCreated({ category: "Drama" }, { messaging: { send } });
+
+    expect(send).not.toHaveBeenCalled();
   });
 });

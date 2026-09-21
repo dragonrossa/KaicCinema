@@ -51,14 +51,15 @@ class LoginViewModel(
 
         return userRepository.getUserRole(uid).fold(
             onSuccess = { role ->
-                registerFcmToken(uid)
+                setUpPushNotifications(uid)
                 LoginUiState.Success(role)
             },
             onFailure = { error -> LoginUiState.Error(error.message ?: "Greška pri dohvaćanju korisničke uloge") },
         )
     }
 
-    private suspend fun registerFcmToken(uid: String) {
+    private suspend fun setUpPushNotifications(uid: String) {
         fcmTokenProvider.getToken().onSuccess { token -> userRepository.updateFcmToken(uid, token) }
+        fcmTokenProvider.subscribeToNewScreenings()
     }
 }

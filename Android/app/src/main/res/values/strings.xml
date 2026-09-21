@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Cinema</string>
-    <string name="reservation_status_channel_name">Status rezervacije</string>
+    <string name="cinema_notifications_channel_name">Obavijesti</string>
 </resources>

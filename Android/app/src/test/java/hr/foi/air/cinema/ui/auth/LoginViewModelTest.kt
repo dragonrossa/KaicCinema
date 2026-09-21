@@ -120,6 +120,21 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun login_success_subscribesToNewScreeningsTopic() = runTest {
+        val fcmTokenProvider = FakeFcmTokenProvider()
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(),
+            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
+            fcmTokenProvider = fcmTokenProvider,
+        )
+
+        viewModel.login(email = "user@example.com", password = "password123")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, fcmTokenProvider.subscribeToNewScreeningsCallCount)
+    }
+
+    @Test
     fun login_success_fcmTokenFetchFails_stillUpdatesStateToSuccess() = runTest {
         val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
         val viewModel = LoginViewModel(
