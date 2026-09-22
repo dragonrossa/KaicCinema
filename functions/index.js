@@ -9,6 +9,7 @@ const APPROVED = "APPROVED";
 const REJECTED = "REJECTED";
 const DECISION_STATUSES = [APPROVED, REJECTED];
 const NEW_SCREENINGS_TOPIC = "new_screenings";
+const SCREENING_NOTIFICATIONS_TOPIC = "screening_notifications";
 
 function buildReservationDecisionMessage(status, movieTitle) {
   if (status === APPROVED) {
@@ -92,6 +93,38 @@ const onScreeningCreated = onDocumentCreated("screenings/{screeningId}", async (
   });
 });
 
+function buildScreeningNotificationMessage(message, movieTitle) {
+  return {
+    title: movieTitle ? `Obavijest: ${movieTitle}` : "Obavijest o projekciji",
+    body: message,
+  };
+}
+
+async function handleScreeningNotificationCreated(notification, { firestore, messaging }) {
+  if (!notification || !notification.message || !notification.screeningId) {
+    return;
+  }
+
+  const screeningSnapshot = await firestore.collection("screenings").doc(notification.screeningId).get();
+  const movieTitle = screeningSnapshot.exists ? screeningSnapshot.data().movieTitle : undefined;
+  const message = buildScreeningNotificationMessage(notification.message, movieTitle);
+
+  await messaging.send({
+    topic: SCREENING_NOTIFICATIONS_TOPIC,
+    notification: {
+      title: message.title,
+      body: message.body,
+    },
+  });
+}
+
+const onScreeningNotificationCreated = onDocumentCreated("screeningNotifications/{notificationId}", async (event) => {
+  await handleScreeningNotificationCreated(event.data.data(), {
+    firestore: getFirestore(),
+    messaging: getMessaging(),
+  });
+});
+
 module.exports = {
   buildReservationDecisionMessage,
   handleReservationStatusChange,
@@ -100,4 +133,8 @@ module.exports = {
   handleScreeningCreated,
   onScreeningCreated,
   NEW_SCREENINGS_TOPIC,
+  buildScreeningNotificationMessage,
+  handleScreeningNotificationCreated,
+  onScreeningNotificationCreated,
+  SCREENING_NOTIFICATIONS_TOPIC,
 };

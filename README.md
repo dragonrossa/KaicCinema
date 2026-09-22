@@ -65,7 +65,7 @@ Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju 
 2. Objavi izmjenu u Firebase Console (copy-paste sadržaja `firestore.rules`) — sama datoteka u repozitoriju ne utječe na produkciju dok se ručno ne objavi.
 3. Ručno testiraj write/read operaciju na uređaju/emulatoru prije nego zatvoriš ticket — unit testovi s fake repozitorijima **ne** validiraju stvarna Firestore pravila, pa PERMISSION_DENIED greška ostaje neotkrivena dok se ne testira uživo (vidi SCRUM-95, SCRUM-122).
 
-Trenutno pokrivene kolekcije: `users`, `screenings`, `reservations`, `purchases`, `news`.
+Trenutno pokrivene kolekcije: `users`, `screenings`, `reservations`, `purchases`, `news`, `screeningNotifications`.
 
 ## Push notifikacije (Cloud Functions)
 

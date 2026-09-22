@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +46,7 @@ import hr.foi.air.cinema.ui.common.formatScreeningTime
 fun ManageScreeningsPage(
     onAddScreeningClick: () -> Unit,
     onEditScreeningClick: (String) -> Unit,
+    onNotifyScreeningClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ManageScreeningsViewModel = viewModel(),
@@ -127,6 +129,7 @@ fun ManageScreeningsPage(
                             screenings = state.screenings,
                             deleteState = deleteState,
                             onEditClick = { screening -> onEditScreeningClick(screening.id) },
+                            onNotifyClick = { screening -> onNotifyScreeningClick(screening.id) },
                             onDeleteClick = { screening -> screeningPendingDeletion = screening },
                         )
                     }
@@ -141,6 +144,7 @@ private fun ManageScreeningsList(
     screenings: List<Screening>,
     deleteState: DeleteScreeningUiState,
     onEditClick: (Screening) -> Unit,
+    onNotifyClick: (Screening) -> Unit,
     onDeleteClick: (Screening) -> Unit,
 ) {
     if (screenings.isEmpty()) {
@@ -166,6 +170,7 @@ private fun ManageScreeningsList(
                 screening = screening,
                 isDeleting = isDeleting,
                 onEditClick = { onEditClick(screening) },
+                onNotifyClick = { onNotifyClick(screening) },
                 onDeleteClick = { onDeleteClick(screening) },
             )
         }
@@ -177,6 +182,7 @@ private fun ManageScreeningRow(
     screening: Screening,
     isDeleting: Boolean,
     onEditClick: () -> Unit,
+    onNotifyClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
@@ -197,6 +203,9 @@ private fun ManageScreeningRow(
                 Row {
                     IconButton(onClick = onEditClick) {
                         Icon(Icons.Filled.Edit, contentDescription = "Uredi projekciju")
+                    }
+                    IconButton(onClick = onNotifyClick) {
+                        Icon(Icons.Filled.Notifications, contentDescription = "Pošalji obavijest o projekciji")
                     }
                     IconButton(onClick = onDeleteClick) {
                         Icon(Icons.Filled.Delete, contentDescription = "Obriši projekciju")

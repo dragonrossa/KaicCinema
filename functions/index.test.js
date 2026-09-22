@@ -4,6 +4,9 @@ const {
   buildNewScreeningMessage,
   handleScreeningCreated,
   NEW_SCREENINGS_TOPIC,
+  buildScreeningNotificationMessage,
+  handleScreeningNotificationCreated,
+  SCREENING_NOTIFICATIONS_TOPIC,
 } = require("./index");
 
 describe("buildReservationDecisionMessage", () => {
@@ -184,5 +187,87 @@ describe("handleScreeningCreated", () => {
     await handleScreeningCreated({ category: "Drama" }, { messaging: { send } });
 
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildScreeningNotificationMessage", () => {
+  test("returns a title referencing the movie title when known", () => {
+    const message = buildScreeningNotificationMessage("Projekcija je pomaknuta na 20:00.", "Dune: Part Three");
+
+    expect(message.title).toBe("Obavijest: Dune: Part Three");
+    expect(message.body).toBe("Projekcija je pomaknuta na 20:00.");
+  });
+
+  test("falls back to generic title when movie title is unknown", () => {
+    const message = buildScreeningNotificationMessage("Projekcija je pomaknuta na 20:00.", undefined);
+
+    expect(message.title).toBe("Obavijest o projekciji");
+  });
+});
+
+describe("handleScreeningNotificationCreated", () => {
+  function makeDeps({ screeningExists = true, movieTitle = "Dune: Part Three" } = {}) {
+    const send = jest.fn().mockResolvedValue("message-id");
+    const screeningDoc = { exists: screeningExists, data: () => ({ movieTitle }) };
+    const firestore = {
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue(screeningDoc),
+        })),
+      })),
+    };
+    return { firestore, messaging: { send } };
+  }
+
+  test("sends a notification to the screening notifications topic connected to the screening", async () => {
+    const deps = makeDeps();
+
+    await handleScreeningNotificationCreated(
+      { screeningId: "screening-1", message: "Projekcija je pomaknuta na 20:00." },
+      deps,
+    );
+
+    expect(deps.messaging.send).toHaveBeenCalledTimes(1);
+    const [[payload]] = deps.messaging.send.mock.calls;
+    expect(payload.topic).toBe(SCREENING_NOTIFICATIONS_TOPIC);
+    expect(payload.notification.title).toBe("Obavijest: Dune: Part Three");
+    expect(payload.notification.body).toBe("Projekcija je pomaknuta na 20:00.");
+  });
+
+  test("falls back to a generic title when the screening no longer exists", async () => {
+    const deps = makeDeps({ screeningExists: false });
+
+    await handleScreeningNotificationCreated(
+      { screeningId: "screening-1", message: "Projekcija je pomaknuta na 20:00." },
+      deps,
+    );
+
+    expect(deps.messaging.send).toHaveBeenCalledTimes(1);
+    const [[payload]] = deps.messaging.send.mock.calls;
+    expect(payload.notification.title).toBe("Obavijest o projekciji");
+  });
+
+  test("does not send when notification data is missing", async () => {
+    const deps = makeDeps();
+
+    await handleScreeningNotificationCreated(undefined, deps);
+
+    expect(deps.messaging.send).not.toHaveBeenCalled();
+  });
+
+  test("does not send when message text is missing", async () => {
+    const deps = makeDeps();
+
+    await handleScreeningNotificationCreated({ screeningId: "screening-1" }, deps);
+
+    expect(deps.messaging.send).not.toHaveBeenCalled();
+  });
+
+  test("does not send when screeningId is missing", async () => {
+    const deps = makeDeps();
+
+    await handleScreeningNotificationCreated({ message: "Projekcija je pomaknuta na 20:00." }, deps);
+
+    expect(deps.messaging.send).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,8 @@ class FakeFcmTokenProvider(
         private set
     var subscribeToNewScreeningsCallCount = 0
         private set
+    var subscribeToScreeningNotificationsCallCount = 0
+        private set
 
     override suspend fun getToken(): Result<String> {
         getTokenCallCount++
@@ -17,6 +19,11 @@ class FakeFcmTokenProvider(
 
     override suspend fun subscribeToNewScreenings(): Result<Unit> {
         subscribeToNewScreeningsCallCount++
+        return subscribeResult
+    }
+
+    override suspend fun subscribeToScreeningNotifications(): Result<Unit> {
+        subscribeToScreeningNotificationsCallCount++
         return subscribeResult
     }
 }

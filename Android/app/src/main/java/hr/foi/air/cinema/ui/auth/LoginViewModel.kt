@@ -61,5 +61,6 @@ class LoginViewModel(
     private suspend fun setUpPushNotifications(uid: String) {
         fcmTokenProvider.getToken().onSuccess { token -> userRepository.updateFcmToken(uid, token) }
         fcmTokenProvider.subscribeToNewScreenings()
+        fcmTokenProvider.subscribeToScreeningNotifications()
     }
 }

@@ -13,6 +13,7 @@ import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
 import hr.foi.air.cinema.ui.admin.EditScreeningPage
 import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
+import hr.foi.air.cinema.ui.admin.PublishScreeningNotificationPage
 import hr.foi.air.cinema.ui.admin.ReservationRequestsPage
 import hr.foi.air.cinema.ui.auth.LoginPage
 import hr.foi.air.cinema.ui.news.NewsPage
@@ -27,6 +28,7 @@ private const val ROUTE_ADMIN_PANEL = "adminPanel"
 private const val ROUTE_MANAGE_SCREENINGS = "manageScreenings"
 private const val ROUTE_ADD_SCREENING = "addScreening"
 private const val ROUTE_EDIT_SCREENING = "editScreening/{$ARG_SCREENING_ID}"
+private const val ROUTE_NOTIFY_SCREENING = "notifyScreening/{$ARG_SCREENING_ID}"
 private const val ROUTE_ADD_NEWS = "addNews"
 private const val ROUTE_NEWS = "news"
 private const val ROUTE_RESERVATION_REQUESTS = "reservationRequests"
@@ -96,6 +98,7 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             ManageScreeningsPage(
                 onAddScreeningClick = { navController.navigate(ROUTE_ADD_SCREENING) },
                 onEditScreeningClick = { screeningId -> navController.navigate("editScreening/$screeningId") },
+                onNotifyScreeningClick = { screeningId -> navController.navigate("notifyScreening/$screeningId") },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -119,6 +122,17 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
         composable(ROUTE_ADD_NEWS) {
             AddNewsPage(
                 onNewsPublished = { navController.popBackStack() },
+                onBackClick = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = ROUTE_NOTIFY_SCREENING,
+            arguments = listOf(navArgument(ARG_SCREENING_ID) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val screeningId = backStackEntry.arguments?.getString(ARG_SCREENING_ID).orEmpty()
+            PublishScreeningNotificationPage(
+                screeningId = screeningId,
+                onNotificationPublished = { navController.popBackStack() },
                 onBackClick = { navController.popBackStack() },
             )
         }
