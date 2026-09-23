@@ -1,5 +1,35 @@
 # KaicCinema
 
+## Odluka: arhitektura push notifikacija (FCM)
+
+Aplikacija nema server-side komponentu — svi upisi u Firestore idu izravno iz Android klijenta. Push notifikacije (odluka o rezervaciji, nova projekcija, admin obavijest vezana uz projekciju) zahtijevaju nešto što detektira relevantan Firestore upis i pošalje FCM poruku, jer klijent koji je napisao promjenu ne može pouzdano poslati notifikaciju **drugom** korisniku (nema pristup njegovom FCM tokenu niti razlog da drži server-side kredencijale).
+
+**Razmatrane opcije:**
+
+1. **Cloud Functions (Firestore trigger)** — server-side funkcija koja sluša `onDocumentCreated`/`onDocumentUpdated` na relevantnoj kolekciji i šalje FCM poruku preko Firebase Admin SDK-a.
+2. **Klijentski trigger** — admin uređaj izravno zove FCM Admin API/HTTP v1 kad izvrši akciju. Odbačeno: zahtijeva da klijent (mobilna aplikacija) drži server-side kredencijale/service account, što je sigurnosno neprihvatljivo (kredencijal bi bio dostupan svakom tko dekompilira APK).
+3. **Scheduled job (periodično provjeravanje)** — polling najnovijih promjena u fiksnim intervalima. Odbačeno: uvodi kašnjenje (notifikacija ne stiže odmah nakon promjene) i nepotrebno je kompleksnije od direktnog triggera na sam upis.
+
+**Odluka: Cloud Functions (Firestore trigger).** Ovo je standardan, preporučen Firebase obrazac za ovaj problem — nema sigurnosnih kompromisa klijentskog pristupa, a šalje notifikaciju odmah čim se dogodi relevantan upis (bez kašnjenja pollinga).
+
+**Infrastrukturne/troškovne implikacije:**
+
+- Cloud Functions zahtijevaju Firebase **Blaze plan** (pay-as-you-go, potrebna dodana kartica na projekt) — projekt je do sada bio na besplatnom Spark planu.
+- Sam FCM (slanje notifikacija) je uvijek besplatan, bez obzira na plan — trošak dolazi isključivo od Cloud Functions izvršavanja.
+- Cloud Functions imaju generozan free tier (milijuni pozivâ mjesečno) — za opseg ovog projekta stvarni trošak je u praksi $0, ali Blaze plan i dalje zahtijeva postavljenu karticu.
+- Novi Node.js modul (`functions/`) u repozitoriju, sa zasebnim `package.json`/testovima (Jest) — ne utječe na Android build, ali zahtijeva Node.js i Firebase CLI instalirane lokalno za razvoj/testiranje/deploy.
+- Deploy je ručan korak (`firebase deploy --only functions`), izvan Android CI/CD toka.
+
+**Mapiranje triggerâ na mehanizam** (svaki je zasebna Cloud Function, `functions/index.js`):
+
+| Notifikacija | Firestore trigger | Cilj slanja |
+|---|---|---|
+| Odluka o rezervaciji (odobreno/odbijeno) | `onDocumentUpdated` na `reservations/{reservationId}`, kad se `status` promijeni u APPROVED/REJECTED | Pojedinačni FCM token korisnika (`users/{uid}.fcmToken`) |
+| Nova projekcija objavljena | `onDocumentCreated` na `screenings/{screeningId}` | FCM tema `new_screenings` (svi pretplaćeni korisnici) |
+| Admin obavijest vezana uz projekciju | `onDocumentCreated` na `screeningNotifications/{notificationId}` | FCM tema `screening_notifications` (svi pretplaćeni korisnici) |
+
+**Napomena o testiranju:** Firebase Local Emulator Suite nema FCM emulator — trigger logika (koja Firestore polja čita, koga cilja) testira se besplatno lokalno emulatorom, ali stvarna isporuka notifikacije zahtijeva pravi deploy ili slanje test poruke kroz Firebase Console. Ova odluka je provedena kroz SCRUM-101 (odluka o rezervaciji), SCRUM-102 (nova projekcija) i SCRUM-103 (admin obavijest) — detaljne upute za setup/testiranje/deploy `functions/` modula nalaze se u sekciji "Push notifikacije (Cloud Functions)" (dodanoj kroz te tickete).
+
 ## Git workflow
 
 Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
