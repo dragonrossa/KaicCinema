@@ -30,6 +30,25 @@ Aplikacija nema server-side komponentu — svi upisi u Firestore idu izravno iz 
 
 **Napomena o testiranju:** Firebase Local Emulator Suite nema FCM emulator — trigger logika (koja Firestore polja čita, koga cilja) testira se besplatno lokalno emulatorom, ali stvarna isporuka notifikacije zahtijeva pravi deploy ili slanje test poruke kroz Firebase Console. Ova odluka je provedena kroz SCRUM-101 (odluka o rezervaciji), SCRUM-102 (nova projekcija) i SCRUM-103 (admin obavijest) — detaljne upute za setup/testiranje/deploy `functions/` modula nalaze se u sekciji "Push notifikacije (Cloud Functions)" (dodanoj kroz te tickete).
 
+## Odluka: FCM dopuštenje i upravljanje device tokenom
+
+Slanje ciljanih push notifikacija zahtijeva spremljen FCM token po korisniku i zatraženo dopuštenje za notifikacije na Android 13+. Ova odluka definira očekivano ponašanje u oba slučaja, kako bi tickete za slanje notifikacija (SCRUM-101/102/103) bilo moguće implementirati na konzistentan način.
+
+**Spremanje i osvježavanje tokena:**
+
+- Token se sprema u **jedno** polje `fcmToken` na `users/{uid}` Firestore dokumentu (ne u zasebnu kolekciju/podkolekciju) — najjednostavniji oblik dovoljan za trenutan opseg aplikacije.
+- Token se dohvaća i sprema pri **svakoj uspješnoj prijavi** (`LoginViewModel.setUpPushNotifications()`), i ponovno svaki put kad Firebase SDK interno osvježi token (`CinemaMessagingService.onNewToken()`), čime ostaje ažuran bez potrebe za ručnim osvježavanjem od strane korisnika.
+- Firestore pravilo (`firestore.rules`) dopušta korisniku da upiše/ažurira **isključivo** vlastito `fcmToken` polje na vlastitom dokumentu (`request.auth.uid == userId` i `affectedKeys().hasOnly(['fcmToken'])`), ništa drugo — sprječava korisnika da mijenja npr. `role`.
+
+**Multi-device: eksplicitno izvan opsega.** Trenutna shema podržava **jedan token po korisniku** — ako se isti korisnik prijavi na drugom uređaju, novi token prepisuje stari (posljednja prijava "pobjeđuje"), pa prethodni uređaj prestaje primati notifikacije bez ikakve obavijesti o tome. Ovo je svjesan kompromis radi jednostavnosti; podrška za više uređaja po korisniku (npr. podkolekcija `users/{uid}/deviceTokens/{token}` uz slanje na sve tokene) nije implementirana i trebala bi biti zaseban budući ticket ako postane potrebna.
+
+**Ponašanje kod dopuštenja za notifikacije (Android 13+):**
+
+- Dopuštenje `POST_NOTIFICATIONS` traži se jednom pri pokretanju `MainActivity` (`requestNotificationPermissionIfNeeded()`), samo ako još nije odobreno — ne traži se ponovno unutar iste sesije ako je već odobreno ili odbijeno.
+- **Ako korisnik odbije:** aplikacija nastavlja raditi normalno, bez pada — poziv `NotificationManager.notify()` u pozadini jednostavno neće prikazati ništa na uređajima bez dopuštenja (Android to tiho ignorira, ne baca iznimku). Nema dodatne logike koja bi to posebno hvatala jer nije ni potrebna.
+- **Ponovno pitanje nakon odbijanja:** ne implementira se ručno u kodu — Android sam po sebi (nakon jednog ili dva odbijanja, ovisno o verziji) prestaje prikazivati sistemski dijalog za to dopuštenje dok korisnik ručno ne omogući iz postavki, pa naš kod ne mora (i ne smije) pokušavati zaobići to ponašanje.
+- **Re-request UI unutar aplikacije: trenutno ne postoji.** Nema gumba/postavke unutar aplikacije koja bi korisnika uputila natrag u sistemske postavke da ručno omogući notifikacije nakon odbijanja. Ovo je svjesna odluka radi opsega — ako se pokaže potrebnim (npr. korisnici se žale da ne dobivaju notifikacije), dodavanje takvog gumba (koji otvara `Settings.ACTION_APP_NOTIFICATION_SETTINGS`) je mali, izolirani budući ticket.
+
 ## Git workflow
 
 Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
