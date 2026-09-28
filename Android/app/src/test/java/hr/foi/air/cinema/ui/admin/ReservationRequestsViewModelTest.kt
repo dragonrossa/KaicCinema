@@ -243,4 +243,35 @@ class ReservationRequestsViewModelTest {
         assertTrue(state is RejectReservationUiState.Error)
         assertEquals("Greška pri odbijanju rezervacije", (state as RejectReservationUiState.Error).message)
     }
+
+    @Test
+    fun withStatus_returnsOnlyRequestsMatchingGivenStatus() {
+        val pending = ReservationRequest(
+            reservation = Reservation(id = "res-1", status = ReservationStatus.PENDING),
+            screening = null,
+        )
+        val approved = ReservationRequest(
+            reservation = Reservation(id = "res-2", status = ReservationStatus.APPROVED),
+            screening = null,
+        )
+        val rejected = ReservationRequest(
+            reservation = Reservation(id = "res-3", status = ReservationStatus.REJECTED),
+            screening = null,
+        )
+        val requests = listOf(pending, approved, rejected)
+
+        assertEquals(listOf(pending), requests.withStatus(ReservationStatus.PENDING))
+        assertEquals(listOf(approved), requests.withStatus(ReservationStatus.APPROVED))
+        assertEquals(listOf(rejected), requests.withStatus(ReservationStatus.REJECTED))
+    }
+
+    @Test
+    fun withStatus_noMatchingRequests_returnsEmptyList() {
+        val pending = ReservationRequest(
+            reservation = Reservation(id = "res-1", status = ReservationStatus.PENDING),
+            screening = null,
+        )
+
+        assertTrue(listOf(pending).withStatus(ReservationStatus.REJECTED).isEmpty())
+    }
 }

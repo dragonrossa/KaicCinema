@@ -78,6 +78,11 @@ fun ReservationRequestsPage(
                     onClick = { selectedTabIndex = 1 },
                     text = { Text("Odobreno") },
                 )
+                Tab(
+                    selected = selectedTabIndex == 2,
+                    onClick = { selectedTabIndex = 2 },
+                    text = { Text("Odbijeno") },
+                )
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -96,12 +101,16 @@ fun ReservationRequestsPage(
                     }
 
                     is ReservationRequestsUiState.Success -> {
-                        val statusFilter = if (selectedTabIndex == 0) ReservationStatus.PENDING else ReservationStatus.APPROVED
-                        val filteredRequests = state.requests.filter { it.reservation.status == statusFilter }
-                        val emptyMessage = if (selectedTabIndex == 0) {
-                            "Trenutno nema zahtjeva za rezervaciju"
-                        } else {
-                            "Trenutno nema odobrenih rezervacija"
+                        val statusFilter = when (selectedTabIndex) {
+                            0 -> ReservationStatus.PENDING
+                            1 -> ReservationStatus.APPROVED
+                            else -> ReservationStatus.REJECTED
+                        }
+                        val filteredRequests = state.requests.withStatus(statusFilter)
+                        val emptyMessage = when (selectedTabIndex) {
+                            0 -> "Trenutno nema zahtjeva za rezervaciju"
+                            1 -> "Trenutno nema odobrenih rezervacija"
+                            else -> "Trenutno nema odbijenih rezervacija"
                         }
                         ReservationRequestsList(
                             requests = filteredRequests,

@@ -27,6 +27,9 @@ sealed interface ReservationRequestsUiState {
     data class Error(val message: String) : ReservationRequestsUiState
 }
 
+fun List<ReservationRequest>.withStatus(status: ReservationStatus): List<ReservationRequest> =
+    filter { it.reservation.status == status }
+
 sealed interface ApproveReservationUiState {
     data object Idle : ApproveReservationUiState
     data class InProgress(val reservationId: String) : ApproveReservationUiState
