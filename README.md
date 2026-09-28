@@ -1,5 +1,19 @@
 # KaicCinema
 
+## Odluka: pravilo izračuna popularnosti i mehanizam praćenja
+
+Model `Screening` već ima polja `views` i `popularity`, a `ScreeningsViewModel`/`ScreeningsPage` već imaju gotove sort opcije "Najgledaniji" (`SortOption.MOST_VIEWED`, sortira po `views`) i "Najpopularniji" (`SortOption.MOST_POPULAR`, sortira po `popularity`) — iz SCRUM-7/114. Problem: ništa trenutno ne upisuje/povećava ta polja, pa su to statične vrijednosti iz seed podataka.
+
+**1. Što se broji kao "view":** otvaranje ekrana s detaljima projekcije (`ScreeningDetailsViewModel` init, kad se `observeScreening()` uspješno učita). Broji se svaki put kad se ekran otvori — bez deduplikacije po korisniku/sesiji (jednostavan sirovi brojač, dosljedno ostatku aplikacije koji ne radi analytics-grade dedup ni za što drugo).
+
+**2. Formula za `popularity`:** `views` i `popularity` ostaju **dva neovisna brojača**, ne jedna kombinirana/ponderirana ocjena — ovo je već implicitno pretpostavljeno postojećim dizajnom (`SortOption` ima dvije zasebne opcije koje sortiraju po različitim poljima, ne po jednoj spojenoj metrici). `popularity` se povećava za 1 svaki put kad se uspješno kreira rezervacija za tu projekciju — inkrement se dodaje u **istu Firestore transakciju** u kojoj `FirestoreTicketRepository.reserveTicket()` već povećava `reservedSeats`, radi atomičnosti. Nema ponderiranja views-a unutar popularity vrijednosti — time se izbjegava uvođenje nove formule koja bi zahtijevala i promjenu postojećeg `SortOption` modela.
+
+**3. Firebase Analytics vs. Firestore brojači:** odluka je zadržati postojeće Firestore brojače (`views`, `popularity` polja) kao izvor istine, **ne** integrirati Firebase Analytics SDK za ovu funkcionalnost. Razlog: Firebase Analytics podaci su orijentirani na izvještavanje (BigQuery export, Analytics konzola) s odgodom od nekoliko sati i nisu upitljivi/sortirivi u stvarnom vremenu iz klijenta — ne mogu pogoniti `sortedByDescending` na popisu projekcija unutar aplikacije. Firestore brojači su već izravno upitljivi i dosljedni postojećoj implementaciji.
+
+**Mjesta izmjene za implementaciju (Ticket 24):**
+- `ScreeningDetailsViewModel.init` — inkrement `views` nakon uspješnog `observeScreening()` (jednom po otvaranju ekrana, ne na svaku emisiju live listenera).
+- `FirestoreTicketRepository.reserveTicket()` — inkrement `popularity` unutar postojeće transakcije, uz `reservedSeats`.
+
 ## Odluka: arhitektura push notifikacija (FCM)
 
 Aplikacija nema server-side komponentu — svi upisi u Firestore idu izravno iz Android klijenta. Push notifikacije (odluka o rezervaciji, nova projekcija, admin obavijest vezana uz projekciju) zahtijevaju nešto što detektira relevantan Firestore upis i pošalje FCM poruku, jer klijent koji je napisao promjenu ne može pouzdano poslati notifikaciju **drugom** korisniku (nema pristup njegovom FCM tokenu niti razlog da drži server-side kredencijale).
