@@ -34,5 +34,8 @@ class ScreeningDetailsViewModel(
                     _uiState.value = screening?.let { ScreeningDetailsUiState.Success(it) } ?: ScreeningDetailsUiState.NotFound
                 }
         }
+        viewModelScope.launch {
+            repository.incrementViews(screeningId)
+        }
     }
 }

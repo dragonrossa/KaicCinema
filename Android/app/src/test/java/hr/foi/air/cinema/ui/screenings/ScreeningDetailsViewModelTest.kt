@@ -83,4 +83,31 @@ class ScreeningDetailsViewModelTest {
         assertTrue(state is ScreeningDetailsUiState.Error)
         assertEquals("Greška pri dohvaćanju projekcije", (state as ScreeningDetailsUiState.Error).message)
     }
+
+    @Test
+    fun screeningOpened_incrementsViewsForCorrectScreening() = runTest {
+        val repository = FakeScreeningRepository(screeningFlow = flowOf(Screening(id = "1")))
+        ScreeningDetailsViewModel(screeningId = "1", repository = repository)
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.incrementViewsCallCount)
+        assertEquals("1", repository.lastIncrementViewsId)
+    }
+
+    @Test
+    fun screeningOpened_incrementViewsFailure_stillLoadsScreeningSuccessfully() = runTest {
+        val screening = Screening(id = "1", movieTitle = "Dune: Part Three")
+        val repository = FakeScreeningRepository(
+            screeningFlow = flowOf(screening),
+            incrementViewsResult = { Result.failure(RuntimeException("Greška pri brojanju pregleda")) },
+        )
+        val viewModel = ScreeningDetailsViewModel(screeningId = "1", repository = repository)
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is ScreeningDetailsUiState.Success)
+        assertEquals(screening, (state as ScreeningDetailsUiState.Success).screening)
+    }
 }

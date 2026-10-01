@@ -11,6 +11,7 @@ private const val RESERVATIONS_COLLECTION = "reservations"
 private const val FIELD_SCREENING_ID = "screeningId"
 private const val FIELD_USER_ID = "userId"
 private const val FIELD_RESERVED_SEATS = "reservedSeats"
+private const val FIELD_POPULARITY = "popularity"
 private const val FIELD_STATUS = "status"
 
 class FirestoreTicketRepository(
@@ -35,6 +36,7 @@ class FirestoreTicketRepository(
                 userId = userId,
             )
             transaction.update(screeningRef, FIELD_RESERVED_SEATS, screening.reservedSeats + 1)
+            transaction.update(screeningRef, FIELD_POPULARITY, screening.popularity + 1)
             transaction.set(reservationRef, reservation)
             reservation
         }.await()

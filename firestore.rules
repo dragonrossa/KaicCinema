@@ -35,8 +35,14 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (
           isSignedIn()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedSeats'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedSeats', 'popularity'])
           && request.resource.data.reservedSeats == resource.data.reservedSeats + 1
+          && request.resource.data.popularity == resource.data.popularity + 1
+        )
+        || (
+          isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+          && request.resource.data.views == resource.data.views + 1
         );
     }
 

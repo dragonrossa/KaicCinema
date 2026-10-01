@@ -8,4 +8,5 @@ interface ScreeningRepository {
     suspend fun addScreening(screening: Screening): Result<Screening>
     suspend fun updateScreening(screening: Screening): Result<Screening>
     suspend fun deleteScreening(id: String): Result<Unit>
+    suspend fun incrementViews(id: String): Result<Unit>
 }

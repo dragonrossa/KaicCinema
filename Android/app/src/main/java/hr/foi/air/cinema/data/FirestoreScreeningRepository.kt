@@ -1,5 +1,6 @@
 package hr.foi.air.cinema.data
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -7,6 +8,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 private const val SCREENINGS_COLLECTION = "screenings"
+private const val FIELD_VIEWS = "views"
 
 class FirestoreScreeningRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -56,5 +58,11 @@ class FirestoreScreeningRepository(
 
     override suspend fun deleteScreening(id: String): Result<Unit> = runCatching {
         firestore.collection(SCREENINGS_COLLECTION).document(id).delete().await()
+    }
+
+    override suspend fun incrementViews(id: String): Result<Unit> = runCatching {
+        firestore.collection(SCREENINGS_COLLECTION).document(id)
+            .update(FIELD_VIEWS, FieldValue.increment(1))
+            .await()
     }
 }

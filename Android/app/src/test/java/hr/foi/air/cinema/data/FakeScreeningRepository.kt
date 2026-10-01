@@ -9,6 +9,7 @@ class FakeScreeningRepository(
     private val addScreeningResult: (Screening) -> Result<Screening> = { Result.success(it) },
     private val updateScreeningResult: (Screening) -> Result<Screening> = { Result.success(it) },
     private val deleteScreeningResult: (String) -> Result<Unit> = { Result.success(Unit) },
+    private val incrementViewsResult: (String) -> Result<Unit> = { Result.success(Unit) },
 ) : ScreeningRepository {
 
     var addScreeningCallCount = 0
@@ -22,6 +23,10 @@ class FakeScreeningRepository(
     var deleteScreeningCallCount = 0
         private set
     var lastDeletedScreeningId: String? = null
+        private set
+    var incrementViewsCallCount = 0
+        private set
+    var lastIncrementViewsId: String? = null
         private set
 
     override fun observeScreenings(): Flow<List<Screening>> = screeningsFlow
@@ -44,5 +49,11 @@ class FakeScreeningRepository(
         deleteScreeningCallCount++
         lastDeletedScreeningId = id
         return deleteScreeningResult(id)
+    }
+
+    override suspend fun incrementViews(id: String): Result<Unit> {
+        incrementViewsCallCount++
+        lastIncrementViewsId = id
+        return incrementViewsResult(id)
     }
 }
