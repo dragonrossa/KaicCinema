@@ -13,6 +13,7 @@ import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
 import hr.foi.air.cinema.ui.admin.EditScreeningPage
 import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
+import hr.foi.air.cinema.ui.admin.PopularMoviesPage
 import hr.foi.air.cinema.ui.admin.PublishScreeningNotificationPage
 import hr.foi.air.cinema.ui.admin.ReservationRequestsPage
 import hr.foi.air.cinema.ui.auth.LoginPage
@@ -32,6 +33,7 @@ private const val ROUTE_NOTIFY_SCREENING = "notifyScreening/{$ARG_SCREENING_ID}"
 private const val ROUTE_ADD_NEWS = "addNews"
 private const val ROUTE_NEWS = "news"
 private const val ROUTE_RESERVATION_REQUESTS = "reservationRequests"
+private const val ROUTE_POPULAR_MOVIES = "popularMovies"
 
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
@@ -89,10 +91,14 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                 onManageScreeningsClick = { navController.navigate(ROUTE_MANAGE_SCREENINGS) },
                 onPublishNewsClick = { navController.navigate(ROUTE_ADD_NEWS) },
                 onViewReservationRequestsClick = { navController.navigate(ROUTE_RESERVATION_REQUESTS) },
+                onViewPopularMoviesClick = { navController.navigate(ROUTE_POPULAR_MOVIES) },
             )
         }
         composable(ROUTE_RESERVATION_REQUESTS) {
             ReservationRequestsPage(onBackClick = { navController.popBackStack() })
+        }
+        composable(ROUTE_POPULAR_MOVIES) {
+            PopularMoviesPage(onBackClick = { navController.popBackStack() })
         }
         composable(ROUTE_MANAGE_SCREENINGS) {
             ManageScreeningsPage(
