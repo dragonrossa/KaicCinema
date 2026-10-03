@@ -250,4 +250,78 @@ class ScreeningsViewModelTest {
         val state = viewModel.uiState.value as ScreeningsUiState.Success
         assertTrue(state.popularScreenings.isEmpty())
     }
+
+    // SCRUM-107: with SCRUM-106 live, `views`/`popularity` now change via real Firestore writes
+    // (opening details / making a reservation) rather than staying static seed data. These tests
+    // simulate that by emitting updated counts on the same flow and confirming re-ranking follows,
+    // instead of only checking a one-shot static ordering.
+    @Test
+    fun sortOption_mostPopular_reflectsLiveUpdatesAsPopularityChanges() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", popularity = 10)
+        val b = Screening(id = "2", movieTitle = "B", popularity = 5)
+        val screeningsFlow = MutableStateFlow(listOf(a, b))
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = screeningsFlow),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onSortOptionSelected(SortOption.MOST_POPULAR)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        var state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(a, b), state.displayedScreenings)
+
+        // B overtakes A in popularity (e.g. several new reservations land on B).
+        val bNowMorePopular = b.copy(popularity = 50)
+        screeningsFlow.value = listOf(a, bNowMorePopular)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(bNowMorePopular, a), state.displayedScreenings)
+    }
+
+    @Test
+    fun sortOption_mostViewed_reflectsLiveUpdatesAsViewsChange() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", views = 10)
+        val b = Screening(id = "2", movieTitle = "B", views = 5)
+        val screeningsFlow = MutableStateFlow(listOf(a, b))
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = screeningsFlow),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onSortOptionSelected(SortOption.MOST_VIEWED)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        var state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(a, b), state.displayedScreenings)
+
+        // B overtakes A in views (e.g. its details screen is opened several more times).
+        val bNowMoreViewed = b.copy(views = 50)
+        screeningsFlow.value = listOf(a, bNowMoreViewed)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(bNowMoreViewed, a), state.displayedScreenings)
+    }
+
+    @Test
+    fun sortOption_survivesRepeatedFirestoreEmissions_regressionUnaffectedBySCRUM106() = runTest {
+        val a = Screening(id = "1", movieTitle = "A", views = 100)
+        val b = Screening(id = "2", movieTitle = "B", views = 900)
+        val screeningsFlow = MutableStateFlow(listOf(a, b))
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = screeningsFlow),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onSortOptionSelected(SortOption.MOST_VIEWED)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updated = listOf(a, b, Screening(id = "3", movieTitle = "C", views = 500))
+        screeningsFlow.value = updated
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(SortOption.MOST_VIEWED, state.sortOption)
+        assertEquals(updated.sortedByDescending { it.views }, state.displayedScreenings)
+    }
 }
