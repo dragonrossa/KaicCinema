@@ -210,4 +210,44 @@ class ScreeningsViewModelTest {
         val state = viewModel.uiState.value as ScreeningsUiState.Success
         assertEquals(listOf(c, a), state.displayedScreenings)
     }
+
+    @Test
+    fun popularScreenings_returnsTopFiveSortedByPopularityDescending() = runTest {
+        val screenings = (1..6).map { index ->
+            Screening(id = "$index", movieTitle = "Movie $index", popularity = index.toLong())
+        }
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        val expected = screenings.sortedByDescending { it.popularity }.take(5)
+        assertEquals(expected, state.popularScreenings)
+    }
+
+    @Test
+    fun popularScreenings_excludesScreeningsWithZeroPopularity() = runTest {
+        val neverReserved = Screening(id = "1", movieTitle = "Never reserved", popularity = 0)
+        val reserved = Screening(id = "2", movieTitle = "Reserved once", popularity = 1)
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(listOf(neverReserved, reserved))),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertEquals(listOf(reserved), state.popularScreenings)
+    }
+
+    @Test
+    fun popularScreenings_noPopularScreenings_returnsEmptyList() = runTest {
+        val screenings = listOf(Screening(id = "1", movieTitle = "A", popularity = 0))
+        val viewModel = ScreeningsViewModel(
+            repository = FakeScreeningRepository(screeningsFlow = flowOf(screenings)),
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScreeningsUiState.Success
+        assertTrue(state.popularScreenings.isEmpty())
+    }
 }

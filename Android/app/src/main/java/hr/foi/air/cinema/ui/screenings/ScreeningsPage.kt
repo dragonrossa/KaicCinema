@@ -80,6 +80,12 @@ fun ScreeningsPage(
 
                 is ScreeningsUiState.Success -> {
                     Column(modifier = Modifier.fillMaxSize()) {
+                        if (state.popularScreenings.isNotEmpty()) {
+                            PopularMoviesRow(
+                                screenings = state.popularScreenings,
+                                onScreeningSelected = onScreeningSelected,
+                            )
+                        }
                         if (state.categories.isNotEmpty()) {
                             CategoryFilterRow(
                                 categories = state.categories,
@@ -98,6 +104,50 @@ fun ScreeningsPage(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PopularMoviesRow(
+    screenings: List<Screening>,
+    onScreeningSelected: (String) -> Unit,
+) {
+    Column {
+        Text(
+            text = "Popularno",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) {
+            items(screenings, key = { it.id }) { screening ->
+                PopularMovieCard(
+                    screening = screening,
+                    onClick = { onScreeningSelected(screening.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PopularMovieCard(screening: Screening, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(text = screening.movieTitle, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "Popularnost: ${screening.popularity}",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

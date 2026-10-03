@@ -17,6 +17,8 @@ enum class SortOption(val label: String) {
     MOST_POPULAR("Najpopularniji"),
 }
 
+private const val POPULAR_SCREENINGS_LIMIT = 5
+
 sealed interface ScreeningsUiState {
     data object Loading : ScreeningsUiState
 
@@ -26,6 +28,11 @@ sealed interface ScreeningsUiState {
         val sortOption: SortOption = SortOption.NONE,
     ) : ScreeningsUiState {
         val categories: List<String> get() = allScreenings.map { it.category }.distinct().sorted()
+
+        val popularScreenings: List<Screening> get() =
+            allScreenings.filter { it.popularity > 0 }
+                .sortedByDescending { it.popularity }
+                .take(POPULAR_SCREENINGS_LIMIT)
 
         val displayedScreenings: List<Screening> get() {
             val filtered = when (selectedCategory) {
