@@ -118,6 +118,78 @@ Nakon restarta provjeri DNS prije nego nastaviš testirati: `adb shell ping -c 2
 
 **Fix:** prije pokretanja emulatora zatvori memorijski zahtjevne aplikacije koje trenutno ne trebaš (puno Chrome tabova, Teams, Word, Remote Desktop Manager i sl.), zatim pokreni/restartaj emulator iz Android Studija (Device Manager).
 
+## Firestore shema podataka
+
+Pregled svih Firestore kolekcija koje aplikacija koristi, njihovih polja i svrhe. Struktura podržava i korisnički i administratorski panel — iste kolekcije se čitaju/upisuju s obje strane, ovisno o ulozi (vidi `firestore.rules`).
+
+**Napomena o "movies":** aplikacija nema zasebnu `movies` kolekciju. Podaci o filmu (naziv, opis) žive kao polja izravno na `screenings` dokumentu — svaka projekcija nosi svoj naziv filma. Ovo je namjerna pojednostavljena odluka (jedan film = jedna projekcija u praksi ovog projekta), ne propust.
+
+### `users/{uid}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `role` | string | `"admin"` ili bilo koja druga vrijednost (tretira se kao običan korisnik) |
+| `fcmToken` | string | FCM device token za push notifikacije, ažuriran pri prijavi i osvježavanju tokena |
+
+Dokument ID = Firebase Auth UID. Nema zasebnog `User` modela u kodu — polja se čitaju izravno (`FirestoreUserRepository`).
+
+### `screenings/{screeningId}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `movieTitle` | string | Naziv filma |
+| `description` | string | Opis projekcije |
+| `screeningTime` | Timestamp | Datum i vrijeme projekcije |
+| `category` | string | Kategorija (slobodan tekst, koristi se za filtriranje) |
+| `views` | number | Broj otvaranja detalja projekcije (SCRUM-106) |
+| `popularity` | number | Broj rezervacija za tu projekciju (SCRUM-106) |
+| `totalSeats` | number | Ukupan broj sjedala |
+| `reservedSeats` | number | Broj zauzetih sjedala |
+
+Model: `Screening.kt`. Dostupno i korisnicima (čitanje) i adminima (puni CRUD).
+
+### `reservations/{reservationId}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `screeningId` | string | Referenca na projekciju |
+| `userId` | string | Referenca na korisnika koji je rezervirao |
+| `status` | string | `PENDING` / `APPROVED` / `REJECTED` |
+| `createdAt` | Timestamp | Vrijeme kreiranja zahtjeva |
+
+Model: `Reservation.kt`. Korisnik kreira i čita svoje; admin čita sve i mijenja status.
+
+### `purchases/{purchaseId}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `screeningId` | string | Referenca na projekciju |
+| `userId` | string | Referenca na korisnika |
+| `status` | string | `COMPLETED` (jedina vrijednost za sada) |
+| `createdAt` | Timestamp | Vrijeme kupnje |
+
+Model: `Purchase.kt`. Namjerno neovisno o `reservations` (vidi SCRUM-120 odluku) — kupnja ne zahtijeva prethodnu rezervaciju.
+
+### `news/{newsId}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `title` | string | Naslov vijesti |
+| `content` | string | Tekst vijesti |
+| `createdAt` | Timestamp | Vrijeme objave |
+
+Model: `News.kt`. Opća obavijest, nije vezana uz konkretnu projekciju.
+
+### `screeningNotifications/{notificationId}`
+
+| Polje | Tip | Opis |
+|---|---|---|
+| `screeningId` | string | Referenca na projekciju na koju se obavijest odnosi |
+| `message` | string | Tekst obavijesti koji unosi admin |
+| `createdAt` | Timestamp | Vrijeme objave |
+
+Model: `ScreeningNotification.kt`. Za razliku od `news`, uvijek je vezana uz konkretnu projekciju (SCRUM-103) — Cloud Function na kreiranje šalje FCM notifikaciju na temu `screening_notifications`.
+
 ## Firestore security rules
 
 Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju se ručno objaviti u Firebase Console (Firestore Database → Rules → Publish) — repozitorij nema Firebase CLI/`firebase.json` postavljen za automatski deploy.
