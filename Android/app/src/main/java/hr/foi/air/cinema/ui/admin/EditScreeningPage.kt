@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil.compose.AsyncImage
 import com.google.firebase.Timestamp
 import hr.foi.air.cinema.ui.common.formatScreeningTime
 import java.util.Calendar
@@ -110,6 +112,7 @@ fun EditScreeningPage(
                         initialCategory = state.screening.category,
                         initialTotalSeats = state.screening.totalSeats.toString(),
                         initialScreeningTimeMillis = state.screening.screeningTime.toDate().time,
+                        initialImageUrl = state.screening.imageUrl,
                         updateState = updateState,
                         onSaveClick = viewModel::updateScreening,
                         onScreeningUpdated = onScreeningUpdated,
@@ -127,8 +130,9 @@ private fun EditScreeningForm(
     initialCategory: String,
     initialTotalSeats: String,
     initialScreeningTimeMillis: Long,
+    initialImageUrl: String,
     updateState: UpdateScreeningUiState,
-    onSaveClick: (movieTitle: String, description: String, category: String, totalSeatsInput: String, screeningTime: Timestamp) -> Unit,
+    onSaveClick: (movieTitle: String, description: String, category: String, totalSeatsInput: String, screeningTime: Timestamp, imageUrl: String) -> Unit,
     onScreeningUpdated: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -139,6 +143,7 @@ private fun EditScreeningForm(
     var calendar by remember {
         mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialScreeningTimeMillis })
     }
+    var imageUrl by rememberSaveable { mutableStateOf(initialImageUrl) }
 
     LaunchedEffect(updateState) {
         if (updateState is UpdateScreeningUiState.Success) {
@@ -227,6 +232,24 @@ private fun EditScreeningForm(
             }
         }
 
+        OutlinedTextField(
+            value = imageUrl,
+            onValueChange = { imageUrl = it },
+            label = { Text("URL slike (opcionalno)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (imageUrl.isNotBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "Pregled slike projekcije",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp),
+            )
+        }
+
         if (updateState is UpdateScreeningUiState.Error) {
             Text(
                 text = updateState.message,
@@ -236,7 +259,7 @@ private fun EditScreeningForm(
 
         Button(
             onClick = {
-                onSaveClick(movieTitle, description, category, totalSeats, Timestamp(calendar.time))
+                onSaveClick(movieTitle, description, category, totalSeats, Timestamp(calendar.time), imageUrl)
             },
             enabled = updateState !is UpdateScreeningUiState.InProgress,
             modifier = Modifier.fillMaxWidth(),

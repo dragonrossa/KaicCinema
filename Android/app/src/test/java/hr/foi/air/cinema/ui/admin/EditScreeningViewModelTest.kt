@@ -192,4 +192,44 @@ class EditScreeningViewModelTest {
         assertTrue(state is UpdateScreeningUiState.Error)
         assertEquals("Greška pri spremanju izmjena", (state as UpdateScreeningUiState.Error).message)
     }
+
+    @Test
+    fun updateScreening_withImageUrl_savesImageUrlOnScreening() = runTest {
+        val screening = Screening(id = "1", movieTitle = "Dune: Part Three", imageUrl = "https://example.com/old.jpg")
+        val repository = FakeScreeningRepository(screeningFlow = flowOf(screening))
+        val viewModel = EditScreeningViewModel(screeningId = "1", screeningRepository = repository)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.updateScreening(
+            movieTitle = "Dune: Part Three",
+            description = "",
+            category = "Drama",
+            totalSeatsInput = "50",
+            screeningTime = screeningTime,
+            imageUrl = "https://example.com/new.jpg",
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(UpdateScreeningUiState.Success, viewModel.updateState.value)
+        assertEquals("https://example.com/new.jpg", repository.lastUpdatedScreening?.imageUrl)
+    }
+
+    @Test
+    fun updateScreening_blankImageUrl_clearsExistingImageUrl() = runTest {
+        val screening = Screening(id = "1", movieTitle = "Dune: Part Three", imageUrl = "https://example.com/old.jpg")
+        val repository = FakeScreeningRepository(screeningFlow = flowOf(screening))
+        val viewModel = EditScreeningViewModel(screeningId = "1", screeningRepository = repository)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.updateScreening(
+            movieTitle = "Dune: Part Three",
+            description = "",
+            category = "Drama",
+            totalSeatsInput = "50",
+            screeningTime = screeningTime,
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("", repository.lastUpdatedScreening?.imageUrl)
+    }
 }

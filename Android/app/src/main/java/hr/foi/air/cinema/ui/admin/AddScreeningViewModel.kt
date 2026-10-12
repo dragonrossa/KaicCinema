@@ -31,6 +31,7 @@ class AddScreeningViewModel(
         category: String,
         totalSeatsInput: String,
         screeningTime: Timestamp,
+        imageUrl: String = "",
     ) {
         if (movieTitle.isBlank()) {
             _uiState.value = AddScreeningUiState.Error("Unesite naziv filma")
@@ -52,6 +53,7 @@ class AddScreeningViewModel(
             screeningTime = screeningTime,
             category = category.trim(),
             totalSeats = totalSeats,
+            imageUrl = imageUrl.trim(),
         )
 
         _uiState.value = AddScreeningUiState.InProgress

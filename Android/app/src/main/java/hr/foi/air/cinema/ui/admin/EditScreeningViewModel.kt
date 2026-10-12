@@ -62,6 +62,7 @@ class EditScreeningViewModel(
         category: String,
         totalSeatsInput: String,
         screeningTime: Timestamp,
+        imageUrl: String = "",
     ) {
         val current = loadedScreening
         if (current == null) {
@@ -94,6 +95,7 @@ class EditScreeningViewModel(
             category = category.trim(),
             totalSeats = totalSeats,
             screeningTime = screeningTime,
+            imageUrl = imageUrl.trim(),
         )
 
         _updateState.value = UpdateScreeningUiState.InProgress
@@ -103,9 +105,7 @@ class EditScreeningViewModel(
                     loadedScreening = updated
                     _updateState.value = UpdateScreeningUiState.Success
                 }
-                .onFailure { error ->
-                    _updateState.value = UpdateScreeningUiState.Error(error.message ?: "Greška pri spremanju izmjena")
-                }
+                .onFailure { error -> _updateState.value = UpdateScreeningUiState.Error(error.message ?: "Greška pri spremanju izmjena") }
         }
     }
 }

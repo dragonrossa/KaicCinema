@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil.compose.AsyncImage
 import hr.foi.air.cinema.data.ReservationStatus
 import hr.foi.air.cinema.data.Screening
 import hr.foi.air.cinema.ui.booking.PurchaseUiState
@@ -135,6 +138,15 @@ private fun ScreeningDetailsContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (screening.imageUrl.isNotBlank()) {
+            AsyncImage(
+                model = screening.imageUrl,
+                contentDescription = "Slika za ${screening.movieTitle}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+            )
+        }
         Text(text = screening.movieTitle, style = MaterialTheme.typography.headlineSmall)
         Text(text = "Kategorija: ${screening.category}", style = MaterialTheme.typography.bodyMedium)
         Text(text = formatScreeningTime(screening.screeningTime), style = MaterialTheme.typography.bodyMedium)

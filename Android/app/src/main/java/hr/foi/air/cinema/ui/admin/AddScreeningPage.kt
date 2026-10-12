@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.google.firebase.Timestamp
 import hr.foi.air.cinema.ui.common.formatScreeningTime
 import java.util.Calendar
@@ -56,6 +58,7 @@ fun AddScreeningPage(
     var category by rememberSaveable { mutableStateOf("") }
     var totalSeats by rememberSaveable { mutableStateOf("") }
     var calendar by remember { mutableStateOf(Calendar.getInstance()) }
+    var imageUrl by rememberSaveable { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
@@ -159,6 +162,24 @@ fun AddScreeningPage(
                 }
             }
 
+            OutlinedTextField(
+                value = imageUrl,
+                onValueChange = { imageUrl = it },
+                label = { Text("URL slike (opcionalno)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            if (imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Pregled slike projekcije",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                )
+            }
+
             val state = uiState
             if (state is AddScreeningUiState.Error) {
                 Text(
@@ -175,6 +196,7 @@ fun AddScreeningPage(
                         category = category,
                         totalSeatsInput = totalSeats,
                         screeningTime = Timestamp(calendar.time),
+                        imageUrl = imageUrl,
                     )
                 },
                 enabled = state !is AddScreeningUiState.InProgress,

@@ -148,4 +148,42 @@ class AddScreeningViewModelTest {
         assertTrue(state is AddScreeningUiState.Error)
         assertEquals("Greška pri spremanju projekcije", (state as AddScreeningUiState.Error).message)
     }
+
+    @Test
+    fun addScreening_withImageUrl_savesImageUrlOnScreening() = runTest {
+        val repository = FakeScreeningRepository()
+        val viewModel = AddScreeningViewModel(repository)
+
+        viewModel.addScreening(
+            movieTitle = "Dune: Part Three",
+            description = "",
+            category = "Drama",
+            totalSeatsInput = "50",
+            screeningTime = screeningTime,
+            imageUrl = "https://example.com/poster.jpg",
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is AddScreeningUiState.Success)
+        assertEquals("https://example.com/poster.jpg", (state as AddScreeningUiState.Success).screening.imageUrl)
+    }
+
+    @Test
+    fun addScreening_withoutImageUrl_savesBlankImageUrl() = runTest {
+        val viewModel = AddScreeningViewModel(FakeScreeningRepository())
+
+        viewModel.addScreening(
+            movieTitle = "Dune: Part Three",
+            description = "",
+            category = "Drama",
+            totalSeatsInput = "50",
+            screeningTime = screeningTime,
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is AddScreeningUiState.Success)
+        assertEquals("", (state as AddScreeningUiState.Success).screening.imageUrl)
+    }
 }

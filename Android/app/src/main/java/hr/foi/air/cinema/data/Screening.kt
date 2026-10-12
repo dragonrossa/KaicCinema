@@ -12,6 +12,7 @@ data class Screening(
     val popularity: Long = 0,
     val totalSeats: Long = 0,
     val reservedSeats: Long = 0,
+    val imageUrl: String = "",
 ) {
     val availableSeats: Long get() = totalSeats - reservedSeats
 
