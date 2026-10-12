@@ -190,6 +190,22 @@ Model: `News.kt`. Opća obavijest, nije vezana uz konkretnu projekciju.
 
 Model: `ScreeningNotification.kt`. Za razliku od `news`, uvijek je vezana uz konkretnu projekciju (SCRUM-103) — Cloud Function na kreiranje šalje FCM notifikaciju na temu `screening_notifications`.
 
+## Firebase Authentication
+
+Konfiguracija prijave i poveznice korisnika s ulogama (SCRUM-10/11/12/13, dokumentirano pod SCRUM-110).
+
+**Provider:** u Firebase Console → Authentication → Sign-in method omogućen je isključivo **Email/Password**. Nijedan drugi provider (Google, telefon, anonimno) trenutno nije uključen niti implementiran u kodu.
+
+**Prijava:** `FirebaseAuthRepository` (`data/FirebaseAuthRepository.kt`) omotava `FirebaseAuth.signInWithEmailAndPassword(...)`. `LoginViewModel` validira prazna polja, poziva prijavu, a nakon uspjeha dohvaća ulogu korisnika i postavlja FCM push token/pretplate na teme (vidi "Push notifikacije" ispod).
+
+**Odjava:** `LogoutViewModel` poziva `authRepository.logout()` (`FirebaseAuth.signOut()`); zajednički `LogoutButton` koristi se i na korisničkom i na admin ekranu, a odjava briše cijeli navigacijski back stack (`popUpTo(0)`) kako bi se spriječio povratak na zaštićen ekran tipkom natrag.
+
+**Povezivanje uloge (RBAC):** uloga se ne čuva u Firebase Authenticationu nego u Firestoreu, na dokumentu `users/{uid}` (vidi "Firestore shema podataka" iznad), polje `role`. `FirestoreUserRepository.getUserRole(uid)` čita to polje: vrijednost `"admin"` → `UserRole.ADMIN`, sve ostalo (uključujući nepostojeće polje) → `UserRole.USER`. `AdminAccessViewModel` je client-side guard koji na ulasku u admin panel ponovno provjerava ulogu i odbija pristup (`Denied`) ako korisnik nije prijavljen ili nema `admin` ulogu; poslužiteljska strana iste provjere provedena je u `firestore.rules` (`isAdmin()` funkcija).
+
+**Testovi:** `LoginViewModelTest` (9), `LogoutViewModelTest` (2), `AdminAccessViewModelTest` (4) — ukupno 15 unit testova, pokrivaju uspješnu/neuspješnu prijavu, dohvat uloge, odjavu i RBAC odbijanje pristupa. Koriste `FakeAuthRepository`/`FakeUserRepository`, bez stvarnog Firebase poziva.
+
+**Što namjerno nije implementirano (izvan dosega ovog ticketa):** registracija/sign-up (korisnici se trenutno kreiraju ručno preko Firebase Console ili `firestore-seed` modula), reset zaboravljene lozinke, email verifikacija. Dodatni načini prijave (npr. Google Sign-In) planirani su kao zaseban epic ("Login Modularity") s vlastitim ticketima.
+
 ## Firestore security rules
 
 Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju se ručno objaviti u Firebase Console (Firestore Database → Rules → Publish) — repozitorij nema Firebase CLI/`firebase.json` postavljen za automatski deploy.
