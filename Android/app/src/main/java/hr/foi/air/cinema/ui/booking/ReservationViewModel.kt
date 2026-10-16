@@ -2,7 +2,11 @@ package hr.foi.air.cinema.ui.booking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsLogger
+import hr.foi.air.cinema.data.AnalyticsParams
 import hr.foi.air.cinema.data.AuthRepository
+import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestoreTicketRepository
 import hr.foi.air.cinema.data.Reservation
@@ -32,6 +36,7 @@ class ReservationViewModel(
     private val screeningId: String,
     private val ticketRepository: TicketRepository = FirestoreTicketRepository(),
     private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val analyticsLogger: AnalyticsLogger = FirebaseAnalyticsLogger(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ReservationUiState>(ReservationUiState.Idle)
@@ -70,7 +75,10 @@ class ReservationViewModel(
         viewModelScope.launch {
             _uiState.value = ReservationUiState.InProgress
             ticketRepository.reserveTicket(screeningId, userId)
-                .onSuccess { reservation -> _uiState.value = ReservationUiState.Success(reservation) }
+                .onSuccess { reservation ->
+                    analyticsLogger.logEvent(AnalyticsEvents.RESERVATION_CREATED, mapOf(AnalyticsParams.SCREENING_ID to screeningId))
+                    _uiState.value = ReservationUiState.Success(reservation)
+                }
                 .onFailure { error -> _uiState.value = ReservationUiState.Error(error.message ?: "Greška pri rezervaciji") }
         }
     }

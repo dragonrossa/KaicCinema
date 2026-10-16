@@ -1,5 +1,8 @@
 package hr.foi.air.cinema.ui.screenings
 
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeScreeningRepository
 import hr.foi.air.cinema.data.Screening
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +39,7 @@ class ScreeningDetailsViewModelTest {
         val viewModel = ScreeningDetailsViewModel(
             screeningId = "1",
             repository = FakeScreeningRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         assertEquals(ScreeningDetailsUiState.Loading, viewModel.uiState.value)
@@ -47,6 +51,7 @@ class ScreeningDetailsViewModelTest {
         val viewModel = ScreeningDetailsViewModel(
             screeningId = "1",
             repository = FakeScreeningRepository(screeningFlow = flowOf(screening)),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -61,6 +66,7 @@ class ScreeningDetailsViewModelTest {
         val viewModel = ScreeningDetailsViewModel(
             screeningId = "missing",
             repository = FakeScreeningRepository(screeningFlow = flowOf(null)),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -75,6 +81,7 @@ class ScreeningDetailsViewModelTest {
             repository = FakeScreeningRepository(
                 screeningFlow = flow { throw RuntimeException("Greška pri dohvaćanju projekcije") },
             ),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -87,7 +94,7 @@ class ScreeningDetailsViewModelTest {
     @Test
     fun screeningOpened_incrementsViewsForCorrectScreening() = runTest {
         val repository = FakeScreeningRepository(screeningFlow = flowOf(Screening(id = "1")))
-        ScreeningDetailsViewModel(screeningId = "1", repository = repository)
+        ScreeningDetailsViewModel(screeningId = "1", repository = repository, analyticsLogger = FakeAnalyticsLogger())
 
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -102,12 +109,30 @@ class ScreeningDetailsViewModelTest {
             screeningFlow = flowOf(screening),
             incrementViewsResult = { Result.failure(RuntimeException("Greška pri brojanju pregleda")) },
         )
-        val viewModel = ScreeningDetailsViewModel(screeningId = "1", repository = repository)
+        val viewModel = ScreeningDetailsViewModel(
+            screeningId = "1",
+            repository = repository,
+            analyticsLogger = FakeAnalyticsLogger(),
+        )
 
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertTrue(state is ScreeningDetailsUiState.Success)
         assertEquals(screening, (state as ScreeningDetailsUiState.Success).screening)
+    }
+
+    @Test
+    fun screeningOpened_logsScreeningViewedAnalyticsEvent() = runTest {
+        val repository = FakeScreeningRepository(screeningFlow = flowOf(Screening(id = "1")))
+        val analyticsLogger = FakeAnalyticsLogger()
+        ScreeningDetailsViewModel(screeningId = "1", repository = repository, analyticsLogger = analyticsLogger)
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, analyticsLogger.loggedEvents.size)
+        val (name, params) = analyticsLogger.loggedEvents.first()
+        assertEquals(AnalyticsEvents.SCREENING_VIEWED, name)
+        assertEquals("1", params[AnalyticsParams.SCREENING_ID])
     }
 }

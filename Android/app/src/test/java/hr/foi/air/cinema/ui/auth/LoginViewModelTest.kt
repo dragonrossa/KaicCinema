@@ -1,5 +1,7 @@
 package hr.foi.air.cinema.ui.auth
 
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeAuthRepository
 import hr.foi.air.cinema.data.FakeFcmTokenProvider
 import hr.foi.air.cinema.data.FakeUserRepository
@@ -34,7 +36,7 @@ class LoginViewModelTest {
     @Test
     fun login_blankCredentials_showsErrorWithoutCallingRepository() {
         val authRepository = FakeAuthRepository()
-        val viewModel = LoginViewModel(authRepository, FakeUserRepository(), FakeFcmTokenProvider())
+        val viewModel = LoginViewModel(authRepository, FakeUserRepository(), FakeFcmTokenProvider(), FakeAnalyticsLogger())
 
         viewModel.login(email = "", password = "")
 
@@ -48,6 +50,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
             fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -62,6 +65,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = FakeUserRepository(roleResult = Result.success(UserRole.ADMIN)),
             fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "admin@example.com", password = "password123")
@@ -76,6 +80,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
             userRepository = FakeUserRepository(),
             fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "wrong")
@@ -92,6 +97,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = FakeUserRepository(roleResult = Result.failure(Exception("Greška pri dohvaćanju uloge"))),
             fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -108,6 +114,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(userId = "test-uid"),
             userRepository = userRepository,
             fcmTokenProvider = fcmTokenProvider,
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -126,6 +133,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
             fcmTokenProvider = fcmTokenProvider,
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -141,6 +149,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
             fcmTokenProvider = fcmTokenProvider,
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -156,6 +165,7 @@ class LoginViewModelTest {
             authRepository = FakeAuthRepository(),
             userRepository = userRepository,
             fcmTokenProvider = FakeFcmTokenProvider(tokenResult = Result.failure(Exception("Nema tokena"))),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -163,5 +173,38 @@ class LoginViewModelTest {
 
         assertEquals(LoginUiState.Success(UserRole.USER), viewModel.uiState.value)
         assertEquals(0, userRepository.updateFcmTokenCallCount)
+    }
+
+    @Test
+    fun login_success_logsLoginAnalyticsEvent() = runTest {
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(),
+            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
+            fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.login(email = "user@example.com", password = "password123")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, analyticsLogger.loggedEvents.size)
+        assertEquals(AnalyticsEvents.LOGIN, analyticsLogger.loggedEvents.first().first)
+    }
+
+    @Test
+    fun login_authFailure_doesNotLogLoginAnalyticsEvent() = runTest {
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = LoginViewModel(
+            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
+            userRepository = FakeUserRepository(),
+            fcmTokenProvider = FakeFcmTokenProvider(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.login(email = "user@example.com", password = "wrong")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(analyticsLogger.loggedEvents.isEmpty())
     }
 }

@@ -1,5 +1,8 @@
 package hr.foi.air.cinema.ui.booking
 
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeAuthRepository
 import hr.foi.air.cinema.data.FakePurchaseRepository
 import hr.foi.air.cinema.data.Purchase
@@ -36,6 +39,7 @@ class PurchaseViewModelTest {
             screeningId = "1",
             purchaseRepository = FakePurchaseRepository(),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         assertEquals(PurchaseUiState.Idle, viewModel.uiState.value)
@@ -48,6 +52,7 @@ class PurchaseViewModelTest {
             screeningId = "1",
             purchaseRepository = FakePurchaseRepository(purchaseResult = Result.success(purchase)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.purchaseTicket()
@@ -64,6 +69,7 @@ class PurchaseViewModelTest {
             screeningId = "1",
             purchaseRepository = FakePurchaseRepository(),
             authRepository = FakeAuthRepository(userId = null),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.purchaseTicket()
@@ -80,6 +86,7 @@ class PurchaseViewModelTest {
             screeningId = "1",
             purchaseRepository = FakePurchaseRepository(purchaseResult = Result.success(purchase)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.purchaseTicket()
@@ -96,6 +103,7 @@ class PurchaseViewModelTest {
                 purchaseResult = Result.failure(RuntimeException("Greška pri kupnji")),
             ),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.purchaseTicket()
@@ -104,5 +112,43 @@ class PurchaseViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is PurchaseUiState.Error)
         assertEquals("Greška pri kupnji", (state as PurchaseUiState.Error).message)
+    }
+
+    @Test
+    fun purchaseTicket_success_logsPurchaseCompletedAnalyticsEvent() = runTest {
+        val purchase = Purchase(id = "purchase-1", screeningId = "1", userId = "test-uid")
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = PurchaseViewModel(
+            screeningId = "1",
+            purchaseRepository = FakePurchaseRepository(purchaseResult = Result.success(purchase)),
+            authRepository = FakeAuthRepository(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.purchaseTicket()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, analyticsLogger.loggedEvents.size)
+        val (name, params) = analyticsLogger.loggedEvents.first()
+        assertEquals(AnalyticsEvents.PURCHASE_COMPLETED, name)
+        assertEquals("1", params[AnalyticsParams.SCREENING_ID])
+    }
+
+    @Test
+    fun purchaseTicket_repositoryError_doesNotLogPurchaseCompletedAnalyticsEvent() = runTest {
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = PurchaseViewModel(
+            screeningId = "1",
+            purchaseRepository = FakePurchaseRepository(
+                purchaseResult = Result.failure(RuntimeException("Greška pri kupnji")),
+            ),
+            authRepository = FakeAuthRepository(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.purchaseTicket()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(analyticsLogger.loggedEvents.isEmpty())
     }
 }

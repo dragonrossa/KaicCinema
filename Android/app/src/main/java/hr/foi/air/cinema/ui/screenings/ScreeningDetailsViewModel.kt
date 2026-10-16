@@ -2,6 +2,10 @@ package hr.foi.air.cinema.ui.screenings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsLogger
+import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirestoreScreeningRepository
 import hr.foi.air.cinema.data.Screening
 import hr.foi.air.cinema.data.ScreeningRepository
@@ -21,6 +25,7 @@ sealed interface ScreeningDetailsUiState {
 class ScreeningDetailsViewModel(
     private val screeningId: String,
     private val repository: ScreeningRepository = FirestoreScreeningRepository(),
+    private val analyticsLogger: AnalyticsLogger = FirebaseAnalyticsLogger(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScreeningDetailsUiState>(ScreeningDetailsUiState.Loading)
@@ -37,5 +42,6 @@ class ScreeningDetailsViewModel(
         viewModelScope.launch {
             repository.incrementViews(screeningId)
         }
+        analyticsLogger.logEvent(AnalyticsEvents.SCREENING_VIEWED, mapOf(AnalyticsParams.SCREENING_ID to screeningId))
     }
 }

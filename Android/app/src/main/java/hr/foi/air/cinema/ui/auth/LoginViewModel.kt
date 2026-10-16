@@ -2,8 +2,11 @@ package hr.foi.air.cinema.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsLogger
 import hr.foi.air.cinema.data.AuthRepository
 import hr.foi.air.cinema.data.FcmTokenProvider
+import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirebaseFcmTokenProvider
 import hr.foi.air.cinema.data.FirestoreUserRepository
@@ -25,6 +28,7 @@ class LoginViewModel(
     private val authRepository: AuthRepository = FirebaseAuthRepository(),
     private val userRepository: UserRepository = FirestoreUserRepository(),
     private val fcmTokenProvider: FcmTokenProvider = FirebaseFcmTokenProvider(),
+    private val analyticsLogger: AnalyticsLogger = FirebaseAnalyticsLogger(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -52,6 +56,7 @@ class LoginViewModel(
         return userRepository.getUserRole(uid).fold(
             onSuccess = { role ->
                 setUpPushNotifications(uid)
+                analyticsLogger.logEvent(AnalyticsEvents.LOGIN)
                 LoginUiState.Success(role)
             },
             onFailure = { error -> LoginUiState.Error(error.message ?: "Greška pri dohvaćanju korisničke uloge") },

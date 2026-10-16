@@ -2,7 +2,11 @@ package hr.foi.air.cinema.ui.booking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsLogger
+import hr.foi.air.cinema.data.AnalyticsParams
 import hr.foi.air.cinema.data.AuthRepository
+import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestorePurchaseRepository
 import hr.foi.air.cinema.data.Purchase
@@ -23,6 +27,7 @@ class PurchaseViewModel(
     private val screeningId: String,
     private val purchaseRepository: PurchaseRepository = FirestorePurchaseRepository(),
     private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val analyticsLogger: AnalyticsLogger = FirebaseAnalyticsLogger(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PurchaseUiState>(PurchaseUiState.Idle)
@@ -38,7 +43,10 @@ class PurchaseViewModel(
         viewModelScope.launch {
             _uiState.value = PurchaseUiState.InProgress
             purchaseRepository.purchaseTicket(screeningId, userId)
-                .onSuccess { purchase -> _uiState.value = PurchaseUiState.Success(purchase) }
+                .onSuccess { purchase ->
+                    analyticsLogger.logEvent(AnalyticsEvents.PURCHASE_COMPLETED, mapOf(AnalyticsParams.SCREENING_ID to screeningId))
+                    _uiState.value = PurchaseUiState.Success(purchase)
+                }
                 .onFailure { error -> _uiState.value = PurchaseUiState.Error(error.message ?: "Greška pri kupnji") }
         }
     }

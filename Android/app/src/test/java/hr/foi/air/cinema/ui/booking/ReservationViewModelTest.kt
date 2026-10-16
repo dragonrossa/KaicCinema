@@ -1,5 +1,8 @@
 package hr.foi.air.cinema.ui.booking
 
+import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeAuthRepository
 import hr.foi.air.cinema.data.FakeTicketRepository
 import hr.foi.air.cinema.data.Reservation
@@ -40,6 +43,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         assertEquals(ReservationUiState.Idle, viewModel.uiState.value)
@@ -52,6 +56,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reserveResult = Result.success(reservation)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.reserveTicket()
@@ -70,6 +75,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(),
             authRepository = FakeAuthRepository(userId = null),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.reserveTicket()
@@ -85,6 +91,7 @@ class ReservationViewModelTest {
                 reserveResult = Result.failure(RuntimeException("Greška pri rezervaciji")),
             ),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         viewModel.reserveTicket()
@@ -101,6 +108,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         assertEquals(ReservationStatusUiState.Loading, viewModel.reservationStatus.value)
@@ -112,6 +120,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reservationFlow = flowOf(null)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -126,6 +135,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -142,6 +152,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -158,6 +169,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reservationFlow = flowOf(reservation)),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -178,6 +190,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(reservationFlow = reservationFlow),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -209,6 +222,7 @@ class ReservationViewModelTest {
             screeningId = "1",
             ticketRepository = FakeTicketRepository(),
             authRepository = FakeAuthRepository(userId = null),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         assertTrue(viewModel.reservationStatus.value is ReservationStatusUiState.Error)
@@ -222,6 +236,7 @@ class ReservationViewModelTest {
                 reservationFlow = flow { throw RuntimeException("Greška pri dohvaćanju statusa rezervacije") },
             ),
             authRepository = FakeAuthRepository(),
+            analyticsLogger = FakeAnalyticsLogger(),
         )
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -229,5 +244,43 @@ class ReservationViewModelTest {
         val state = viewModel.reservationStatus.value
         assertTrue(state is ReservationStatusUiState.Error)
         assertEquals("Greška pri dohvaćanju statusa rezervacije", (state as ReservationStatusUiState.Error).message)
+    }
+
+    @Test
+    fun reserveTicket_success_logsReservationCreatedAnalyticsEvent() = runTest {
+        val reservation = Reservation(id = "res-1", screeningId = "1", userId = "test-uid")
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(reserveResult = Result.success(reservation)),
+            authRepository = FakeAuthRepository(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.reserveTicket()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, analyticsLogger.loggedEvents.size)
+        val (name, params) = analyticsLogger.loggedEvents.first()
+        assertEquals(AnalyticsEvents.RESERVATION_CREATED, name)
+        assertEquals("1", params[AnalyticsParams.SCREENING_ID])
+    }
+
+    @Test
+    fun reserveTicket_repositoryError_doesNotLogReservationCreatedAnalyticsEvent() = runTest {
+        val analyticsLogger = FakeAnalyticsLogger()
+        val viewModel = ReservationViewModel(
+            screeningId = "1",
+            ticketRepository = FakeTicketRepository(
+                reserveResult = Result.failure(RuntimeException("Greška pri rezervaciji")),
+            ),
+            authRepository = FakeAuthRepository(),
+            analyticsLogger = analyticsLogger,
+        )
+
+        viewModel.reserveTicket()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(analyticsLogger.loggedEvents.isEmpty())
     }
 }
