@@ -41,6 +41,11 @@ service cloud.firestore {
         )
         || (
           isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedSeats'])
+          && request.resource.data.reservedSeats == resource.data.reservedSeats + 1
+        )
+        || (
+          isSignedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
           && request.resource.data.views == resource.data.views + 1
         );
