@@ -63,6 +63,20 @@ Slanje ciljanih push notifikacija zahtijeva spremljen FCM token po korisniku i z
 - **Ponovno pitanje nakon odbijanja:** ne implementira se ručno u kodu — Android sam po sebi (nakon jednog ili dva odbijanja, ovisno o verziji) prestaje prikazivati sistemski dijalog za to dopuštenje dok korisnik ručno ne omogući iz postavki, pa naš kod ne mora (i ne smije) pokušavati zaobići to ponašanje.
 - **Re-request UI unutar aplikacije: trenutno ne postoji.** Nema gumba/postavke unutar aplikacije koja bi korisnika uputila natrag u sistemske postavke da ručno omogući notifikacije nakon odbijanja. Ovo je svjesna odluka radi opsega — ako se pokaže potrebnim (npr. korisnici se žale da ne dobivaju notifikacije), dodavanje takvog gumba (koji otvara `Settings.ACTION_APP_NOTIFICATION_SETTINGS`) je mali, izolirani budući ticket.
 
+## Dizajn: login selektor i login moduli (SCRUM-138)
+
+Prije implementacije login modularnosti (email + lozinka kao postojeći modul, Google prijava kao novi) izrađeni su i odobreni UI/UX mockupi za tri elementa, usklađeni s postojećim Material 3 izgledom aplikacije:
+
+1. **Ekran odabira načina prijave** — novi ekran koji zamjenjuje izravan ulazak na email formu; nudi email i Google prijavu ravnopravno (filled gumb za email, zaseban Google gumb ispod razdjelnika "ili").
+2. **Ekran prijave emailom** — zadržava postojeći izgled (`LoginPage.kt`), uz jedinu izmjenu: dodanu strelicu natrag prema ekranu odabira.
+3. **Tretman Google gumba** — stanja (default / pritisnuto / učitavanje) i mjere (48dp visina, 18×18dp logo, 12dp razmak logo–tekst, Roboto Medium 14sp, rub 1dp #DADCE0, radijus 4dp) po Google brand smjernicama. Gumb se ne boji u boju aplikacije — to je zahtjev Google-ovih smjernica za prijavu. Nakon dodira otvara se sistemski Android account picker, koji aplikacija ne stilizira (izvan opsega dizajna).
+
+**Paleta:** primarna boja gumba je tamno smaragdno zelena (`#1F4D3D` light / `#5FAE8C` dark), uz postojeći zlatni akcent — odabrano umjesto originalnog prijedloga (duboko vinska crvena) nakon pregleda mockupa.
+
+**Opseg:** treći modul iz Login Modularity epic-a (prijava brojem telefona / SMS kod) nije dio ovog ticketa niti mockupa — dodaje se kao zaseban budući modul bez izmjene ekrana odabira (DIP princip, vidi ticket opise za Login Modularity epic).
+
+Mockupi su pregledani i odobreni prije početka implementacije (zahtjev AC-a); implementacija po ovom dizajnu prati se kroz sljedeći ticket u Login Modularity epic-u.
+
 ## Git workflow
 
 Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
