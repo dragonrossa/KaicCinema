@@ -77,6 +77,44 @@ Prije implementacije login modularnosti (email + lozinka kao postojeći modul, G
 
 Mockupi su pregledani i odobreni prije početka implementacije (zahtjev AC-a); implementacija po ovom dizajnu prati se kroz sljedeći ticket u Login Modularity epic-u.
 
+## Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)
+
+Prije fizičke ekstrakcije login modula (email + lozinka kao postojeći modul, Google prijava kao novi, vidi [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)) potrebno je pismeno definirati granicu između `core` modula i `app`-a, prije nego ikakav kod bude fizički premješten. Ovo je spike ticket — bez implementacijskog koda, samo arhitekturna odluka.
+
+**Trenutno stanje (polazna točka):** aplikacija je jedan Gradle modul (`:app`), uz `:firestore-seed` kao nepovezan alat za seedanje podataka (vidi `settings.gradle.kts`). `LoginViewModel` izravno sastavlja četiri Firebase-ovisne apstrakcije preko DIP default-parametara: `AuthRepository`, `UserRepository`, `FcmTokenProvider`, `AnalyticsLogger`. Nema nikakve login-metoda apstrakcije — `LoginPage.kt` je jedini, hardkodirani email+lozinka ekran.
+
+**1. Oblik `LoginModule` sučelja:**
+
+```kotlin
+interface LoginModule {
+    val id: String
+    val displayName: String
+
+    @Composable
+    fun Content(onLoginSuccess: (UserRole) -> Unit)
+}
+```
+
+Svaki način prijave (postojeći email modul, budući Google modul, kasnije i SMS modul) implementira ovo sučelje kao samostalnu jedinicu — ekran odabira prijave (SCRUM-138 mockup) iterira listu dostupnih `LoginModule` instanci bez poznavanja njihove konkretne implementacije.
+
+**2. Koji tipovi idu u `core`:**
+
+- `UserRole` (enum) — seli se u `core` **bez promjene**. Već je čist, bez ikakve Firebase/Android ovisnosti (`data/UserRole.kt`), pa je direktan kandidat.
+- `UserRoleResolver` — **novo** sučelje, definirano u `core`, koje svaki login modul koristi nakon uspješne autentikacije da razriješi ulogu:
+  ```kotlin
+  interface UserRoleResolver {
+      suspend fun resolveRole(uid: String): Result<UserRole>
+  }
+  ```
+  `app` modul implementira ovo sučelje kao adapter oko postojećeg `UserRepository.getUserRole()` (`FirestoreUserRepository` ostaje u `app`, nema potrebe da core zna za Firestore). Razlog za ovu apstrakciju: svaka login metoda — email i budući Google — treba identičan korak razrješavanja uloge nakon autentikacije, pa taj korak mora biti dio `core` kontrakta, a ne ponavljan u svakom modulu zasebno.
+- `AuthRepository` i `FcmTokenProvider` ostaju Firebase-ovisni detalji **unutar** svojih login modula (ili u `app`-u, ovisno o modulu) — ne sele se u `core`, jer je svaka login metoda odgovorna za vlastiti mehanizam autentikacije.
+
+**3. Nulte ovisnosti `core` modula o Firebase/Android frameworku:**
+
+`core` smije ovisiti isključivo o čistom Kotlinu i Jetpack Compose runtime/UI artefaktima (potrebnim za `@Composable` potpis u `LoginModule.Content()`) — nikad o `com.google.firebase:*`, `android.*` Context-ovisnom API-ju, niti bilo kojem konkretnom repozitoriju (`FirestoreUserRepository`, `FirebaseAuthRepository` i sl.). Compose UI ovisnost se ne smatra "framework-specifičnom" u smislu ove odluke — standardna je i očekivana ovisnost svakog core modula u višemodularnoj Compose aplikaciji, za razliku od Firebase SDK-a koji je vezan uz konkretnu backend uslugu.
+
+**Izlaz ovog ticketa:** ova dokumentirana odluka, pregledana i odobrena prije nego sljedeći ticket (fizička ekstrakcija `:core` i `:login-email` modula) počne.
+
 ## Git workflow
 
 Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
