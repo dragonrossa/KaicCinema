@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.core.UserRole
 
 @Composable
 fun LoginPage(

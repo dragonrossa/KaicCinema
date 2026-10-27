@@ -1,5 +1,7 @@
 package hr.foi.air.cinema.data
 
+import hr.foi.air.cinema.core.UserRole
+
 class FakeUserRepository(
     private val roleResult: Result<UserRole> = Result.success(UserRole.USER),
     private val updateFcmTokenResult: Result<Unit> = Result.success(Unit),

@@ -7,7 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.core.UserRole
 import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage

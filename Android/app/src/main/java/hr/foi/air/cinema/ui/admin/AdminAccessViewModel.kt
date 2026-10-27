@@ -6,7 +6,7 @@ import hr.foi.air.cinema.data.AuthRepository
 import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestoreUserRepository
 import hr.foi.air.cinema.data.UserRepository
-import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.core.UserRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

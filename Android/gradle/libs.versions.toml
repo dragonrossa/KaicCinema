@@ -37,6 +37,7 @@ firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-fires
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 firebase-analytics-ktx = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
@@ -44,6 +45,7 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

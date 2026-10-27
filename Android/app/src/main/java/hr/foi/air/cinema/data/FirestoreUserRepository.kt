@@ -2,6 +2,7 @@ package hr.foi.air.cinema.data
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import hr.foi.air.cinema.core.UserRole
 import kotlinx.coroutines.tasks.await
 
 private const val USERS_COLLECTION = "users"

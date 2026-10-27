@@ -5,7 +5,7 @@ import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeAuthRepository
 import hr.foi.air.cinema.data.FakeFcmTokenProvider
 import hr.foi.air.cinema.data.FakeUserRepository
-import hr.foi.air.cinema.data.UserRole
+import hr.foi.air.cinema.core.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
