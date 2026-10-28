@@ -1,17 +1,11 @@
-package hr.foi.air.cinema.ui.auth
+package hr.foi.air.cinema.loginemail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.AnalyticsLogger
-import hr.foi.air.cinema.data.AuthRepository
-import hr.foi.air.cinema.data.FcmTokenProvider
-import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
-import hr.foi.air.cinema.data.FirebaseAuthRepository
-import hr.foi.air.cinema.data.FirebaseFcmTokenProvider
-import hr.foi.air.cinema.data.FirestoreUserRepository
-import hr.foi.air.cinema.data.UserRepository
+import hr.foi.air.cinema.core.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsLogger
 import hr.foi.air.cinema.core.UserRole
+import hr.foi.air.cinema.core.UserRoleResolver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,10 +19,10 @@ sealed interface LoginUiState {
 }
 
 class LoginViewModel(
+    private val analyticsLogger: AnalyticsLogger,
+    private val userRoleResolver: UserRoleResolver,
     private val authRepository: AuthRepository = FirebaseAuthRepository(),
-    private val userRepository: UserRepository = FirestoreUserRepository(),
     private val fcmTokenProvider: FcmTokenProvider = FirebaseFcmTokenProvider(),
-    private val analyticsLogger: AnalyticsLogger = FirebaseAnalyticsLogger(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -53,7 +47,7 @@ class LoginViewModel(
         val uid = authRepository.currentUserId()
             ?: return LoginUiState.Error("Prijava nije uspjela")
 
-        return userRepository.getUserRole(uid).fold(
+        return userRoleResolver.resolveRole(uid).fold(
             onSuccess = { role ->
                 setUpPushNotifications(uid)
                 analyticsLogger.logEvent(AnalyticsEvents.LOGIN)
@@ -64,7 +58,7 @@ class LoginViewModel(
     }
 
     private suspend fun setUpPushNotifications(uid: String) {
-        fcmTokenProvider.getToken().onSuccess { token -> userRepository.updateFcmToken(uid, token) }
+        fcmTokenProvider.getToken().onSuccess { token -> fcmTokenProvider.saveToken(uid, token) }
         fcmTokenProvider.subscribeToNewScreenings()
         fcmTokenProvider.subscribeToScreeningNotifications()
     }

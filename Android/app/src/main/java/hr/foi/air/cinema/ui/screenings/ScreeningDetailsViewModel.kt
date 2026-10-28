@@ -2,9 +2,9 @@ package hr.foi.air.cinema.ui.screenings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.AnalyticsLogger
-import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.core.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsLogger
+import hr.foi.air.cinema.core.AnalyticsParams
 import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirestoreScreeningRepository
 import hr.foi.air.cinema.data.Screening

@@ -11,8 +11,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import hr.foi.air.cinema.MainActivity
 import hr.foi.air.cinema.R
-import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestoreUserRepository
+import hr.foi.air.cinema.loginemail.FirebaseAuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

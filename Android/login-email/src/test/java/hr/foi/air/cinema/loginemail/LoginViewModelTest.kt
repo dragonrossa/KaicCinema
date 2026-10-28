@@ -1,10 +1,6 @@
-package hr.foi.air.cinema.ui.auth
+package hr.foi.air.cinema.loginemail
 
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.FakeAnalyticsLogger
-import hr.foi.air.cinema.data.FakeAuthRepository
-import hr.foi.air.cinema.data.FakeFcmTokenProvider
-import hr.foi.air.cinema.data.FakeUserRepository
+import hr.foi.air.cinema.core.AnalyticsEvents
 import hr.foi.air.cinema.core.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +32,12 @@ class LoginViewModelTest {
     @Test
     fun login_blankCredentials_showsErrorWithoutCallingRepository() {
         val authRepository = FakeAuthRepository()
-        val viewModel = LoginViewModel(authRepository, FakeUserRepository(), FakeFcmTokenProvider(), FakeAnalyticsLogger())
+        val viewModel = LoginViewModel(
+            analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(),
+            authRepository = authRepository,
+            fcmTokenProvider = FakeFcmTokenProvider(),
+        )
 
         viewModel.login(email = "", password = "")
 
@@ -47,10 +48,10 @@ class LoginViewModelTest {
     @Test
     fun login_validCredentials_userRole_updatesStateToSuccessWithUserRole() = runTest {
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -62,10 +63,10 @@ class LoginViewModelTest {
     @Test
     fun login_validCredentials_adminRole_updatesStateToSuccessWithAdminRole() = runTest {
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.ADMIN)),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.ADMIN)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "admin@example.com", password = "password123")
@@ -77,10 +78,10 @@ class LoginViewModelTest {
     @Test
     fun login_authFailure_updatesStateToError() = runTest {
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
-            userRepository = FakeUserRepository(),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(),
+            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "user@example.com", password = "wrong")
@@ -94,10 +95,10 @@ class LoginViewModelTest {
     @Test
     fun login_roleFetchFailure_updatesStateToError() = runTest {
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.failure(Exception("Greška pri dohvaćanju uloge"))),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.failure(Exception("Greška pri dohvaćanju uloge"))),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -108,32 +109,31 @@ class LoginViewModelTest {
 
     @Test
     fun login_success_registersFcmTokenForCurrentUser() = runTest {
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
         val fcmTokenProvider = FakeFcmTokenProvider(tokenResult = Result.success("device-token-1"))
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(userId = "test-uid"),
-            userRepository = userRepository,
-            fcmTokenProvider = fcmTokenProvider,
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(userId = "test-uid"),
+            fcmTokenProvider = fcmTokenProvider,
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, fcmTokenProvider.getTokenCallCount)
-        assertEquals(1, userRepository.updateFcmTokenCallCount)
-        assertEquals("test-uid", userRepository.lastFcmTokenUid)
-        assertEquals("device-token-1", userRepository.lastFcmToken)
+        assertEquals(1, fcmTokenProvider.saveTokenCallCount)
+        assertEquals("test-uid", fcmTokenProvider.lastSavedUid)
+        assertEquals("device-token-1", fcmTokenProvider.lastSavedToken)
     }
 
     @Test
     fun login_success_subscribesToNewScreeningsTopic() = runTest {
         val fcmTokenProvider = FakeFcmTokenProvider()
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
-            fcmTokenProvider = fcmTokenProvider,
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = fcmTokenProvider,
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -146,10 +146,10 @@ class LoginViewModelTest {
     fun login_success_subscribesToScreeningNotificationsTopic() = runTest {
         val fcmTokenProvider = FakeFcmTokenProvider()
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
-            fcmTokenProvider = fcmTokenProvider,
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = fcmTokenProvider,
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -160,29 +160,29 @@ class LoginViewModelTest {
 
     @Test
     fun login_success_fcmTokenFetchFails_stillUpdatesStateToSuccess() = runTest {
-        val userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER))
+        val fcmTokenProvider = FakeFcmTokenProvider(tokenResult = Result.failure(Exception("Nema tokena")))
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = userRepository,
-            fcmTokenProvider = FakeFcmTokenProvider(tokenResult = Result.failure(Exception("Nema tokena"))),
             analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = fcmTokenProvider,
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(LoginUiState.Success(UserRole.USER), viewModel.uiState.value)
-        assertEquals(0, userRepository.updateFcmTokenCallCount)
+        assertEquals(0, fcmTokenProvider.saveTokenCallCount)
     }
 
     @Test
     fun login_success_logsLoginAnalyticsEvent() = runTest {
         val analyticsLogger = FakeAnalyticsLogger()
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(),
-            userRepository = FakeUserRepository(roleResult = Result.success(UserRole.USER)),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = analyticsLogger,
+            userRoleResolver = FakeUserRoleResolver(roleResult = Result.success(UserRole.USER)),
+            authRepository = FakeAuthRepository(),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "user@example.com", password = "password123")
@@ -196,10 +196,10 @@ class LoginViewModelTest {
     fun login_authFailure_doesNotLogLoginAnalyticsEvent() = runTest {
         val analyticsLogger = FakeAnalyticsLogger()
         val viewModel = LoginViewModel(
-            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
-            userRepository = FakeUserRepository(),
-            fcmTokenProvider = FakeFcmTokenProvider(),
             analyticsLogger = analyticsLogger,
+            userRoleResolver = FakeUserRoleResolver(),
+            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
+            fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
         viewModel.login(email = "user@example.com", password = "wrong")

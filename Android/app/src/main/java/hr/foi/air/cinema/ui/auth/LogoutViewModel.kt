@@ -1,11 +1,11 @@
 package hr.foi.air.cinema.ui.auth
 
 import androidx.lifecycle.ViewModel
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.AnalyticsLogger
-import hr.foi.air.cinema.data.AuthRepository
+import hr.foi.air.cinema.core.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsLogger
 import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
-import hr.foi.air.cinema.data.FirebaseAuthRepository
+import hr.foi.air.cinema.loginemail.AuthRepository
+import hr.foi.air.cinema.loginemail.FirebaseAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

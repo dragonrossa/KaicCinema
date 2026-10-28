@@ -1,4 +1,4 @@
-package hr.foi.air.cinema.data
+package hr.foi.air.cinema.loginemail
 
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await

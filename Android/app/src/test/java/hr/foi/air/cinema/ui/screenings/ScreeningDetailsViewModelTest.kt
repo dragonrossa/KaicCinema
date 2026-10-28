@@ -1,7 +1,7 @@
 package hr.foi.air.cinema.ui.screenings
 
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.AnalyticsParams
+import hr.foi.air.cinema.core.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsParams
 import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeScreeningRepository
 import hr.foi.air.cinema.data.Screening

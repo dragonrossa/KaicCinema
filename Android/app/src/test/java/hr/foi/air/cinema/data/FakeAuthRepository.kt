@@ -1,5 +1,7 @@
 package hr.foi.air.cinema.data
 
+import hr.foi.air.cinema.loginemail.AuthRepository
+
 class FakeAuthRepository(
     private val loginResult: Result<Unit> = Result.success(Unit),
     private val userId: String? = "test-uid",

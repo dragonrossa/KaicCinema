@@ -1,4 +1,4 @@
-package hr.foi.air.cinema.ui.auth
+package hr.foi.air.cinema.loginemail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,13 +22,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import hr.foi.air.cinema.core.AnalyticsLogger
 import hr.foi.air.cinema.core.UserRole
+import hr.foi.air.cinema.core.UserRoleResolver
 
 @Composable
-fun LoginPage(
+internal fun LoginPage(
+    analyticsLogger: AnalyticsLogger,
+    userRoleResolver: UserRoleResolver,
     onLoginSuccess: (UserRole) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LoginViewModel = viewModel(),
+    viewModel: LoginViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { LoginViewModel(analyticsLogger = analyticsLogger, userRoleResolver = userRoleResolver) }
+        },
+    ),
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }

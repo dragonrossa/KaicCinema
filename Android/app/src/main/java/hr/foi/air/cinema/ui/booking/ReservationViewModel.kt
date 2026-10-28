@@ -2,16 +2,16 @@ package hr.foi.air.cinema.ui.booking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import hr.foi.air.cinema.data.AnalyticsEvents
-import hr.foi.air.cinema.data.AnalyticsLogger
-import hr.foi.air.cinema.data.AnalyticsParams
-import hr.foi.air.cinema.data.AuthRepository
+import hr.foi.air.cinema.core.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsLogger
+import hr.foi.air.cinema.core.AnalyticsParams
 import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
-import hr.foi.air.cinema.data.FirebaseAuthRepository
 import hr.foi.air.cinema.data.FirestoreTicketRepository
 import hr.foi.air.cinema.data.Reservation
 import hr.foi.air.cinema.data.ReservationStatus
 import hr.foi.air.cinema.data.TicketRepository
+import hr.foi.air.cinema.loginemail.AuthRepository
+import hr.foi.air.cinema.loginemail.FirebaseAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -3,6 +3,7 @@ package hr.foi.air.cinema.data
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import hr.foi.air.cinema.core.UserRole
+import hr.foi.air.cinema.core.UserRoleResolver
 import kotlinx.coroutines.tasks.await
 
 private const val USERS_COLLECTION = "users"
@@ -12,12 +13,14 @@ private const val ROLE_ADMIN = "admin"
 
 class FirestoreUserRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-) : UserRepository {
+) : UserRepository, UserRoleResolver {
 
     override suspend fun getUserRole(uid: String): Result<UserRole> = runCatching {
         val document = firestore.collection(USERS_COLLECTION).document(uid).get().await()
         if (document.getString(FIELD_ROLE) == ROLE_ADMIN) UserRole.ADMIN else UserRole.USER
     }
+
+    override suspend fun resolveRole(uid: String): Result<UserRole> = getUserRole(uid)
 
     override suspend fun updateFcmToken(uid: String, token: String): Result<Unit> = runCatching {
         firestore.collection(USERS_COLLECTION).document(uid)

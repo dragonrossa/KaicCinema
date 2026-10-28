@@ -1,6 +1,6 @@
 package hr.foi.air.cinema.ui.auth
 
-import hr.foi.air.cinema.data.AnalyticsEvents
+import hr.foi.air.cinema.core.AnalyticsEvents
 import hr.foi.air.cinema.data.FakeAnalyticsLogger
 import hr.foi.air.cinema.data.FakeAuthRepository
 import org.junit.Assert.assertEquals

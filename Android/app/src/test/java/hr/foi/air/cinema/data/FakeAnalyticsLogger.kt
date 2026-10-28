@@ -1,5 +1,7 @@
 package hr.foi.air.cinema.data
 
+import hr.foi.air.cinema.core.AnalyticsLogger
+
 class FakeAnalyticsLogger : AnalyticsLogger {
 
     val loggedEvents = mutableListOf<Pair<String, Map<String, String>>>()

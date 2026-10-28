@@ -1,4 +1,4 @@
-package hr.foi.air.cinema.data
+package hr.foi.air.cinema.core
 
 object AnalyticsEvents {
     const val LOGIN = "login"

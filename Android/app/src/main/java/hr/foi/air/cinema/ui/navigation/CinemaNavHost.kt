@@ -1,13 +1,18 @@
 package hr.foi.air.cinema.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import hr.foi.air.cinema.core.LoginModule
 import hr.foi.air.cinema.core.UserRole
+import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
+import hr.foi.air.cinema.data.FirestoreUserRepository
+import hr.foi.air.cinema.loginemail.EmailLoginModule
 import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
@@ -16,7 +21,6 @@ import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
 import hr.foi.air.cinema.ui.admin.PopularMoviesPage
 import hr.foi.air.cinema.ui.admin.PublishScreeningNotificationPage
 import hr.foi.air.cinema.ui.admin.ReservationRequestsPage
-import hr.foi.air.cinema.ui.auth.LoginPage
 import hr.foi.air.cinema.ui.news.NewsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningsPage
@@ -43,6 +47,12 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             popUpTo(0)
         }
     }
+    val loginModule: LoginModule = remember {
+        EmailLoginModule(
+            analyticsLogger = FirebaseAnalyticsLogger(),
+            userRoleResolver = FirestoreUserRepository(),
+        )
+    }
 
     NavHost(
         navController = navController,
@@ -50,7 +60,7 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
         modifier = modifier,
     ) {
         composable(ROUTE_LOGIN) {
-            LoginPage(
+            loginModule.Content(
                 onLoginSuccess = { role ->
                     val destination = when (role) {
                         UserRole.ADMIN -> ROUTE_ADMIN_PANEL
