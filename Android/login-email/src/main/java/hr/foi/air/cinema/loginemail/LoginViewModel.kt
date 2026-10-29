@@ -38,7 +38,7 @@ class LoginViewModel(
         viewModelScope.launch {
             _uiState.value = authRepository.login(email, password).fold(
                 onSuccess = { resolveRole() },
-                onFailure = { error -> LoginUiState.Error(error.message ?: "Prijava nije uspjela") },
+                onFailure = { error -> LoginUiState.Error(mapAuthErrorMessage(error)) },
             )
         }
     }

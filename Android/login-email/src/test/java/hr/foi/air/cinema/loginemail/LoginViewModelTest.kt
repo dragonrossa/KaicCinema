@@ -76,11 +76,11 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun login_authFailure_updatesStateToError() = runTest {
+    fun login_authFailure_updatesStateToGenericErrorMessage() = runTest {
         val viewModel = LoginViewModel(
             analyticsLogger = FakeAnalyticsLogger(),
             userRoleResolver = FakeUserRoleResolver(),
-            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("Neispravni podaci"))),
+            authRepository = FakeAuthRepository(loginResult = Result.failure(Exception("some unmapped error"))),
             fcmTokenProvider = FakeFcmTokenProvider(),
         )
 
@@ -89,7 +89,31 @@ class LoginViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state is LoginUiState.Error)
-        assertEquals("Neispravni podaci", (state as LoginUiState.Error).message)
+        assertEquals("Prijava nije uspjela", (state as LoginUiState.Error).message)
+    }
+
+    @Test
+    fun login_invalidCredentials_updatesStateToLocalizedErrorMessage() = runTest {
+        val viewModel = LoginViewModel(
+            analyticsLogger = FakeAnalyticsLogger(),
+            userRoleResolver = FakeUserRoleResolver(),
+            authRepository = FakeAuthRepository(
+                loginResult = Result.failure(
+                    com.google.firebase.auth.FirebaseAuthInvalidCredentialsException(
+                        "ERROR_INVALID_CREDENTIAL",
+                        "The supplied auth credential is incorrect, malformed or has expired.",
+                    ),
+                ),
+            ),
+            fcmTokenProvider = FakeFcmTokenProvider(),
+        )
+
+        viewModel.login(email = "user@example.com", password = "wrong")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is LoginUiState.Error)
+        assertEquals("Pogrešan email ili lozinka", (state as LoginUiState.Error).message)
     }
 
     @Test
