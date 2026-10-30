@@ -27,9 +27,9 @@ import hr.foi.air.cinema.ui.screenings.ScreeningsPage
 
 private const val ARG_SCREENING_ID = "screeningId"
 private const val ROUTE_LOGIN = "login"
-private const val ROUTE_SCREENINGS = "screenings"
+internal const val ROUTE_SCREENINGS = "screenings"
 private const val ROUTE_SCREENING_DETAILS = "screeningDetails/{$ARG_SCREENING_ID}"
-private const val ROUTE_ADMIN_PANEL = "adminPanel"
+internal const val ROUTE_ADMIN_PANEL = "adminPanel"
 private const val ROUTE_MANAGE_SCREENINGS = "manageScreenings"
 private const val ROUTE_ADD_SCREENING = "addScreening"
 private const val ROUTE_EDIT_SCREENING = "editScreening/{$ARG_SCREENING_ID}"
@@ -38,6 +38,11 @@ private const val ROUTE_ADD_NEWS = "addNews"
 private const val ROUTE_NEWS = "news"
 private const val ROUTE_RESERVATION_REQUESTS = "reservationRequests"
 private const val ROUTE_POPULAR_MOVIES = "popularMovies"
+
+internal fun loginDestinationFor(role: UserRole): String = when (role) {
+    UserRole.ADMIN -> ROUTE_ADMIN_PANEL
+    UserRole.USER -> ROUTE_SCREENINGS
+}
 
 @Composable
 fun CinemaNavHost(modifier: Modifier = Modifier) {
@@ -58,11 +63,7 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
     ) {
         composable(ROUTE_LOGIN) {
             val onLoginSuccess: (UserRole) -> Unit = { role ->
-                val destination = when (role) {
-                    UserRole.ADMIN -> ROUTE_ADMIN_PANEL
-                    UserRole.USER -> ROUTE_SCREENINGS
-                }
-                navController.navigate(destination) {
+                navController.navigate(loginDestinationFor(role)) {
                     popUpTo(ROUTE_LOGIN) { inclusive = true }
                 }
             }
