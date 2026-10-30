@@ -1,26 +1,17 @@
 package hr.foi.air.cinema.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import hr.foi.air.cinema.R
-import hr.foi.air.cinema.core.LoginModule
 import hr.foi.air.cinema.core.UserRole
 import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirestoreUserRepository
-import hr.foi.air.cinema.loginemail.EmailLoginModule
-import hr.foi.air.cinema.logingoogle.GoogleLoginModule
+import hr.foi.air.cinema.login.discoverLoginModuleProviders
 import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
@@ -29,6 +20,7 @@ import hr.foi.air.cinema.ui.admin.ManageScreeningsPage
 import hr.foi.air.cinema.ui.admin.PopularMoviesPage
 import hr.foi.air.cinema.ui.admin.PublishScreeningNotificationPage
 import hr.foi.air.cinema.ui.admin.ReservationRequestsPage
+import hr.foi.air.cinema.ui.auth.LoginSelectorPage
 import hr.foi.air.cinema.ui.news.NewsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningDetailsPage
 import hr.foi.air.cinema.ui.screenings.ScreeningsPage
@@ -55,20 +47,9 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             popUpTo(0)
         }
     }
-    val emailLoginModule: LoginModule = remember {
-        EmailLoginModule(
-            analyticsLogger = FirebaseAnalyticsLogger(),
-            userRoleResolver = FirestoreUserRepository(),
-        )
-    }
-    val googleWebClientId = stringResource(R.string.default_web_client_id)
-    val googleLoginModule: LoginModule = remember(googleWebClientId) {
-        GoogleLoginModule(
-            analyticsLogger = FirebaseAnalyticsLogger(),
-            userRoleResolver = FirestoreUserRepository(),
-            webClientId = googleWebClientId,
-        )
-    }
+    val loginModuleProviders = remember { discoverLoginModuleProviders() }
+    val analyticsLogger = remember { FirebaseAnalyticsLogger() }
+    val userRoleResolver = remember { FirestoreUserRepository() }
 
     NavHost(
         navController = navController,
@@ -85,13 +66,12 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
                     popUpTo(ROUTE_LOGIN) { inclusive = true }
                 }
             }
-            // Temporary stacked layout until the SCRUM-138 login method selector is built.
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.align(Alignment.Center).fillMaxWidth()) {
-                    emailLoginModule.Content(onLoginSuccess = onLoginSuccess)
-                    googleLoginModule.Content(onLoginSuccess = onLoginSuccess)
-                }
-            }
+            LoginSelectorPage(
+                providers = loginModuleProviders,
+                analyticsLogger = analyticsLogger,
+                userRoleResolver = userRoleResolver,
+                onLoginSuccess = onLoginSuccess,
+            )
         }
         composable(ROUTE_SCREENINGS) {
             ScreeningsPage(

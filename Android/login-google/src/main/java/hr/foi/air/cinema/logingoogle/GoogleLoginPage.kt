@@ -53,6 +53,12 @@ internal fun GoogleLoginPage(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 8.dp),
     ) {
+        Text(
+            text = "Izaberite kako se želite ulogirati",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+
         val state = uiState
         if (state is LoginUiState.Error) {
             Text(
