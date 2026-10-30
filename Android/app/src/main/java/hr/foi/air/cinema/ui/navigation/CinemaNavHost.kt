@@ -1,18 +1,26 @@
 package hr.foi.air.cinema.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import hr.foi.air.cinema.R
 import hr.foi.air.cinema.core.LoginModule
 import hr.foi.air.cinema.core.UserRole
 import hr.foi.air.cinema.data.FirebaseAnalyticsLogger
 import hr.foi.air.cinema.data.FirestoreUserRepository
 import hr.foi.air.cinema.loginemail.EmailLoginModule
+import hr.foi.air.cinema.logingoogle.GoogleLoginModule
 import hr.foi.air.cinema.ui.admin.AddNewsPage
 import hr.foi.air.cinema.ui.admin.AddScreeningPage
 import hr.foi.air.cinema.ui.admin.AdminPanelPage
@@ -47,10 +55,18 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
             popUpTo(0)
         }
     }
-    val loginModule: LoginModule = remember {
+    val emailLoginModule: LoginModule = remember {
         EmailLoginModule(
             analyticsLogger = FirebaseAnalyticsLogger(),
             userRoleResolver = FirestoreUserRepository(),
+        )
+    }
+    val googleWebClientId = stringResource(R.string.default_web_client_id)
+    val googleLoginModule: LoginModule = remember(googleWebClientId) {
+        GoogleLoginModule(
+            analyticsLogger = FirebaseAnalyticsLogger(),
+            userRoleResolver = FirestoreUserRepository(),
+            webClientId = googleWebClientId,
         )
     }
 
@@ -60,17 +76,22 @@ fun CinemaNavHost(modifier: Modifier = Modifier) {
         modifier = modifier,
     ) {
         composable(ROUTE_LOGIN) {
-            loginModule.Content(
-                onLoginSuccess = { role ->
-                    val destination = when (role) {
-                        UserRole.ADMIN -> ROUTE_ADMIN_PANEL
-                        UserRole.USER -> ROUTE_SCREENINGS
-                    }
-                    navController.navigate(destination) {
-                        popUpTo(ROUTE_LOGIN) { inclusive = true }
-                    }
-                },
-            )
+            val onLoginSuccess: (UserRole) -> Unit = { role ->
+                val destination = when (role) {
+                    UserRole.ADMIN -> ROUTE_ADMIN_PANEL
+                    UserRole.USER -> ROUTE_SCREENINGS
+                }
+                navController.navigate(destination) {
+                    popUpTo(ROUTE_LOGIN) { inclusive = true }
+                }
+            }
+            // Temporary stacked layout until the SCRUM-138 login method selector is built.
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.align(Alignment.Center).fillMaxWidth()) {
+                    emailLoginModule.Content(onLoginSuccess = onLoginSuccess)
+                    googleLoginModule.Content(onLoginSuccess = onLoginSuccess)
+                }
+            }
         }
         composable(ROUTE_SCREENINGS) {
             ScreeningsPage(

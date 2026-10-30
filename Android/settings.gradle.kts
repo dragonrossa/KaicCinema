@@ -23,5 +23,6 @@ rootProject.name = "Cinema"
 include(":app")
 include(":core")
 include(":login-email")
+include(":login-google")
 include(":firestore-seed")
 project(":firestore-seed").projectDir = file("../firestore-seed")

@@ -1,8 +1,6 @@
 package hr.foi.air.cinema.loginemail
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,9 +51,8 @@ internal fun LoginPage(
 
     Column(
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
     ) {
         Text(text = "Cinema", style = MaterialTheme.typography.headlineMedium)
         Text(
