@@ -1,125 +1,123 @@
 # KaicCinema
 
-## Odluka: pravilo izračuna popularnosti i mehanizam praćenja
+Android aplikacija za kino: korisnici pregledavaju projekcije, rezerviraju i kupuju karte, a administratori upravljaju projekcijama, rezervacijama i obavijestima. Backend je u potpunosti na Firebaseu (Auth, Firestore, Cloud Messaging, Analytics, Cloud Functions).
 
-Model `Screening` već ima polja `views` i `popularity`, a `ScreeningsViewModel`/`ScreeningsPage` već imaju gotove sort opcije "Najgledaniji" (`SortOption.MOST_VIEWED`, sortira po `views`) i "Najpopularniji" (`SortOption.MOST_POPULAR`, sortira po `popularity`) — iz SCRUM-7/114. Problem: ništa trenutno ne upisuje/povećava ta polja, pa su to statične vrijednosti iz seed podataka.
+## Funkcionalnosti
 
-**1. Što se broji kao "view":** otvaranje ekrana s detaljima projekcije (`ScreeningDetailsViewModel` init, kad se `observeScreening()` uspješno učita). Broji se svaki put kad se ekran otvori — bez deduplikacije po korisniku/sesiji (jednostavan sirovi brojač, dosljedno ostatku aplikacije koji ne radi analytics-grade dedup ni za što drugo).
+**Korisnik**
 
-**2. Formula za `popularity`:** `views` i `popularity` ostaju **dva neovisna brojača**, ne jedna kombinirana/ponderirana ocjena — ovo je već implicitno pretpostavljeno postojećim dizajnom (`SortOption` ima dvije zasebne opcije koje sortiraju po različitim poljima, ne po jednoj spojenoj metrici). `popularity` se povećava za 1 svaki put kad se uspješno kreira rezervacija za tu projekciju — inkrement se dodaje u **istu Firestore transakciju** u kojoj `FirestoreTicketRepository.reserveTicket()` već povećava `reservedSeats`, radi atomičnosti. Nema ponderiranja views-a unutar popularity vrijednosti — time se izbjegava uvođenje nove formule koja bi zahtijevala i promjenu postojećeg `SortOption` modela.
+- Prijava emailom i lozinkom ili Google računom (ekran odabira načina prijave)
+- Lista projekcija u stvarnom vremenu, filtriranje po kategoriji, sortiranje (zadano / najgledaniji / najpopularniji)
+- Detalji projekcije s brojem slobodnih mjesta
+- Rezervacija karte (`PENDING` → `APPROVED` / `REJECTED`) i prikaz statusa rezervacije
+- Kupnja karte (neovisno o rezervaciji)
+- Vijesti kina
+- Push notifikacije: odluka o rezervaciji, nova projekcija, obavijest vezana uz projekciju
 
-**3. Firebase Analytics vs. Firestore brojači:** odluka je zadržati postojeće Firestore brojače (`views`, `popularity` polja) kao izvor istine, **ne** integrirati Firebase Analytics SDK za ovu funkcionalnost. Razlog: Firebase Analytics podaci su orijentirani na izvještavanje (BigQuery export, Analytics konzola) s odgodom od nekoliko sati i nisu upitljivi/sortirivi u stvarnom vremenu iz klijenta — ne mogu pogoniti `sortedByDescending` na popisu projekcija unutar aplikacije. Firestore brojači su već izravno upitljivi i dosljedni postojećoj implementaciji.
+**Administrator**
 
-**Mjesta izmjene za implementaciju (Ticket 24):**
-- `ScreeningDetailsViewModel.init` — inkrement `views` nakon uspješnog `observeScreening()` (jednom po otvaranju ekrana, ne na svaku emisiju live listenera).
-- `FirestoreTicketRepository.reserveTicket()` — inkrement `popularity` unutar postojeće transakcije, uz `reservedSeats`.
+- Dodavanje, uređivanje i brisanje projekcija (brisanje je blokirano ako projekcija ima aktivne rezervacije ili kupljene karte)
+- Pregled zahtjeva za rezervaciju, odobravanje i odbijanje, tab odbijenih rezervacija
+- Objava vijesti i obavijesti vezanih uz konkretnu projekciju
+- Uvid u najpopularnije filmove
 
-## Odluka: arhitektura push notifikacija (FCM)
+Uloga se određuje poljem `users/{uid}.role` u Firestoreu i provodi se i u aplikaciji i u `firestore.rules`.
 
-Aplikacija nema server-side komponentu — svi upisi u Firestore idu izravno iz Android klijenta. Push notifikacije (odluka o rezervaciji, nova projekcija, admin obavijest vezana uz projekciju) zahtijevaju nešto što detektira relevantan Firestore upis i pošalje FCM poruku, jer klijent koji je napisao promjenu ne može pouzdano poslati notifikaciju **drugom** korisniku (nema pristup njegovom FCM tokenu niti razlog da drži server-side kredencijale).
+## Tehnologije
 
-**Razmatrane opcije:**
+| Područje | Tehnologija |
+|---|---|
+| Jezik / UI | Kotlin, Jetpack Compose, Material 3, Navigation Compose |
+| Arhitektura | MVVM (ViewModel + `StateFlow`), repozitoriji iza sučelja, višemodularni login (`LoginModule`) |
+| Autentikacija | Firebase Auth (email + lozinka, Google Sign-In preko Credential Managera) |
+| Podaci | Cloud Firestore (real-time listeneri, transakcije za zauzeće mjesta) |
+| Notifikacije | Firebase Cloud Messaging + Cloud Functions (Node.js 22, 2nd gen) |
+| Analitika | Firebase Analytics |
+| Slike | Coil |
+| Testovi | JUnit 4, kotlinx-coroutines-test (Android); Jest (Cloud Functions) |
+| Build | Gradle 8.14 (Kotlin DSL, version catalog), AGP 8.13, JDK 21, minSdk 26, targetSdk 36 |
 
-1. **Cloud Functions (Firestore trigger)** — server-side funkcija koja sluša `onDocumentCreated`/`onDocumentUpdated` na relevantnoj kolekciji i šalje FCM poruku preko Firebase Admin SDK-a.
-2. **Klijentski trigger** — admin uređaj izravno zove FCM Admin API/HTTP v1 kad izvrši akciju. Odbačeno: zahtijeva da klijent (mobilna aplikacija) drži server-side kredencijale/service account, što je sigurnosno neprihvatljivo (kredencijal bi bio dostupan svakom tko dekompilira APK).
-3. **Scheduled job (periodično provjeravanje)** — polling najnovijih promjena u fiksnim intervalima. Odbačeno: uvodi kašnjenje (notifikacija ne stiže odmah nakon promjene) i nepotrebno je kompleksnije od direktnog triggera na sam upis.
+## Struktura repozitorija
 
-**Odluka: Cloud Functions (Firestore trigger).** Ovo je standardan, preporučen Firebase obrazac za ovaj problem — nema sigurnosnih kompromisa klijentskog pristupa, a šalje notifikaciju odmah čim se dogodi relevantan upis (bez kašnjenja pollinga).
-
-**Infrastrukturne/troškovne implikacije:**
-
-- Cloud Functions zahtijevaju Firebase **Blaze plan** (pay-as-you-go, potrebna dodana kartica na projekt) — projekt je do sada bio na besplatnom Spark planu.
-- Sam FCM (slanje notifikacija) je uvijek besplatan, bez obzira na plan — trošak dolazi isključivo od Cloud Functions izvršavanja.
-- Cloud Functions imaju generozan free tier (milijuni pozivâ mjesečno) — za opseg ovog projekta stvarni trošak je u praksi $0, ali Blaze plan i dalje zahtijeva postavljenu karticu.
-- Novi Node.js modul (`functions/`) u repozitoriju, sa zasebnim `package.json`/testovima (Jest) — ne utječe na Android build, ali zahtijeva Node.js i Firebase CLI instalirane lokalno za razvoj/testiranje/deploy.
-- Deploy je ručan korak (`firebase deploy --only functions`), izvan Android CI/CD toka.
-
-**Mapiranje triggerâ na mehanizam** (svaki je zasebna Cloud Function, `functions/index.js`):
-
-| Notifikacija | Firestore trigger | Cilj slanja |
-|---|---|---|
-| Odluka o rezervaciji (odobreno/odbijeno) | `onDocumentUpdated` na `reservations/{reservationId}`, kad se `status` promijeni u APPROVED/REJECTED | Pojedinačni FCM token korisnika (`users/{uid}.fcmToken`) |
-| Nova projekcija objavljena | `onDocumentCreated` na `screenings/{screeningId}` | FCM tema `new_screenings` (svi pretplaćeni korisnici) |
-| Admin obavijest vezana uz projekciju | `onDocumentCreated` na `screeningNotifications/{notificationId}` | FCM tema `screening_notifications` (svi pretplaćeni korisnici) |
-
-**Napomena o testiranju:** Firebase Local Emulator Suite nema FCM emulator — trigger logika (koja Firestore polja čita, koga cilja) testira se besplatno lokalno emulatorom, ali stvarna isporuka notifikacije zahtijeva pravi deploy ili slanje test poruke kroz Firebase Console. Ova odluka je provedena kroz SCRUM-101 (odluka o rezervaciji), SCRUM-102 (nova projekcija) i SCRUM-103 (admin obavijest) — detaljne upute za setup/testiranje/deploy `functions/` modula nalaze se u sekciji "Push notifikacije (Cloud Functions)" (dodanoj kroz te tickete).
-
-## Odluka: FCM dopuštenje i upravljanje device tokenom
-
-Slanje ciljanih push notifikacija zahtijeva spremljen FCM token po korisniku i zatraženo dopuštenje za notifikacije na Android 13+. Ova odluka definira očekivano ponašanje u oba slučaja, kako bi tickete za slanje notifikacija (SCRUM-101/102/103) bilo moguće implementirati na konzistentan način.
-
-**Spremanje i osvježavanje tokena:**
-
-- Token se sprema u **jedno** polje `fcmToken` na `users/{uid}` Firestore dokumentu (ne u zasebnu kolekciju/podkolekciju) — najjednostavniji oblik dovoljan za trenutan opseg aplikacije.
-- Token se dohvaća i sprema pri **svakoj uspješnoj prijavi** (`LoginViewModel.setUpPushNotifications()`), i ponovno svaki put kad Firebase SDK interno osvježi token (`CinemaMessagingService.onNewToken()`), čime ostaje ažuran bez potrebe za ručnim osvježavanjem od strane korisnika.
-- Firestore pravilo (`firestore.rules`) dopušta korisniku da upiše/ažurira **isključivo** vlastito `fcmToken` polje na vlastitom dokumentu (`request.auth.uid == userId` i `affectedKeys().hasOnly(['fcmToken'])`), ništa drugo — sprječava korisnika da mijenja npr. `role`.
-
-**Multi-device: eksplicitno izvan opsega.** Trenutna shema podržava **jedan token po korisniku** — ako se isti korisnik prijavi na drugom uređaju, novi token prepisuje stari (posljednja prijava "pobjeđuje"), pa prethodni uređaj prestaje primati notifikacije bez ikakve obavijesti o tome. Ovo je svjesan kompromis radi jednostavnosti; podrška za više uređaja po korisniku (npr. podkolekcija `users/{uid}/deviceTokens/{token}` uz slanje na sve tokene) nije implementirana i trebala bi biti zaseban budući ticket ako postane potrebna.
-
-**Ponašanje kod dopuštenja za notifikacije (Android 13+):**
-
-- Dopuštenje `POST_NOTIFICATIONS` traži se jednom pri pokretanju `MainActivity` (`requestNotificationPermissionIfNeeded()`), samo ako još nije odobreno — ne traži se ponovno unutar iste sesije ako je već odobreno ili odbijeno.
-- **Ako korisnik odbije:** aplikacija nastavlja raditi normalno, bez pada — poziv `NotificationManager.notify()` u pozadini jednostavno neće prikazati ništa na uređajima bez dopuštenja (Android to tiho ignorira, ne baca iznimku). Nema dodatne logike koja bi to posebno hvatala jer nije ni potrebna.
-- **Ponovno pitanje nakon odbijanja:** ne implementira se ručno u kodu — Android sam po sebi (nakon jednog ili dva odbijanja, ovisno o verziji) prestaje prikazivati sistemski dijalog za to dopuštenje dok korisnik ručno ne omogući iz postavki, pa naš kod ne mora (i ne smije) pokušavati zaobići to ponašanje.
-- **Re-request UI unutar aplikacije: trenutno ne postoji.** Nema gumba/postavke unutar aplikacije koja bi korisnika uputila natrag u sistemske postavke da ručno omogući notifikacije nakon odbijanja. Ovo je svjesna odluka radi opsega — ako se pokaže potrebnim (npr. korisnici se žale da ne dobivaju notifikacije), dodavanje takvog gumba (koji otvara `Settings.ACTION_APP_NOTIFICATION_SETTINGS`) je mali, izolirani budući ticket.
-
-## Dizajn: login selektor i login moduli (SCRUM-138)
-
-Prije implementacije login modularnosti (email + lozinka kao postojeći modul, Google prijava kao novi) izrađeni su i odobreni UI/UX mockupi za tri elementa, usklađeni s postojećim Material 3 izgledom aplikacije:
-
-1. **Ekran odabira načina prijave** — novi ekran koji zamjenjuje izravan ulazak na email formu; nudi email i Google prijavu ravnopravno (filled gumb za email, zaseban Google gumb ispod razdjelnika "ili").
-2. **Ekran prijave emailom** — zadržava postojeći izgled (`LoginPage.kt`), uz jedinu izmjenu: dodanu strelicu natrag prema ekranu odabira.
-3. **Tretman Google gumba** — stanja (default / pritisnuto / učitavanje) i mjere (48dp visina, 18×18dp logo, 12dp razmak logo–tekst, Roboto Medium 14sp, rub 1dp #DADCE0, radijus 4dp) po Google brand smjernicama. Gumb se ne boji u boju aplikacije — to je zahtjev Google-ovih smjernica za prijavu. Nakon dodira otvara se sistemski Android account picker, koji aplikacija ne stilizira (izvan opsega dizajna).
-
-**Paleta:** primarna boja gumba je tamno smaragdno zelena (`#1F4D3D` light / `#5FAE8C` dark), uz postojeći zlatni akcent — odabrano umjesto originalnog prijedloga (duboko vinska crvena) nakon pregleda mockupa.
-
-**Opseg:** treći modul iz Login Modularity epic-a (prijava brojem telefona / SMS kod) nije dio ovog ticketa niti mockupa — dodaje se kao zaseban budući modul bez izmjene ekrana odabira (DIP princip, vidi ticket opise za Login Modularity epic).
-
-Mockupi su pregledani i odobreni prije početka implementacije (zahtjev AC-a); implementacija po ovom dizajnu prati se kroz sljedeći ticket u Login Modularity epic-u.
-
-## Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)
-
-Prije fizičke ekstrakcije login modula (email + lozinka kao postojeći modul, Google prijava kao novi, vidi [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)) potrebno je pismeno definirati granicu između `core` modula i `app`-a, prije nego ikakav kod bude fizički premješten. Ovo je spike ticket — bez implementacijskog koda, samo arhitekturna odluka.
-
-**Trenutno stanje (polazna točka):** aplikacija je jedan Gradle modul (`:app`), uz `:firestore-seed` kao nepovezan alat za seedanje podataka (vidi `settings.gradle.kts`). `LoginViewModel` izravno sastavlja četiri Firebase-ovisne apstrakcije preko DIP default-parametara: `AuthRepository`, `UserRepository`, `FcmTokenProvider`, `AnalyticsLogger`. Nema nikakve login-metoda apstrakcije — `LoginPage.kt` je jedini, hardkodirani email+lozinka ekran.
-
-**1. Oblik `LoginModule` sučelja:**
-
-```kotlin
-interface LoginModule {
-    val id: String
-    val displayName: String
-
-    @Composable
-    fun Content(onLoginSuccess: (UserRole) -> Unit)
-}
+```
+Cinema/
+├── Android/                 Gradle projekt (otvara se u Android Studiju)
+│   ├── app/                 aplikacija: UI (Compose), ViewModeli, Firestore repozitoriji, navigacija, FCM servis
+│   ├── core/                čisti kontrakti bez Firebase ovisnosti: LoginModule, UserRole, UserRoleResolver, AnalyticsLogger
+│   ├── login-email/         login modul: prijava emailom i lozinkom
+│   └── login-google/        login modul: Google Sign-In
+├── functions/               Cloud Functions (Node.js) za slanje push notifikacija
+├── firestore-seed/          Kotlin alat za punjenje Firestorea test podacima (uključen u Android Gradle build)
+├── firestore.rules          Firestore security rules
+└── firebase.json            Firebase CLI konfiguracija (functions, rules, emulatori)
 ```
 
-Svaki način prijave (postojeći email modul, budući Google modul, kasnije i SMS modul) implementira ovo sučelje kao samostalnu jedinicu — ekran odabira prijave (SCRUM-138 mockup) iterira listu dostupnih `LoginModule` instanci bez poznavanja njihove konkretne implementacije.
+Ekran odabira prijave ne zna za konkretne login module, nego ih otkriva preko `LoginModuleProvider` sučelja iz `core` modula (vidi [Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)](#odluka-loginmodule-kontrakt-i-granice-core-modula-scrum-132)).
 
-**2. Koji tipovi idu u `core`:**
+## Brzi početak
 
-- `UserRole` (enum) — seli se u `core` **bez promjene**. Već je čist, bez ikakve Firebase/Android ovisnosti (`data/UserRole.kt`), pa je direktan kandidat.
-- `UserRoleResolver` — **novo** sučelje, definirano u `core`, koje svaki login modul koristi nakon uspješne autentikacije da razriješi ulogu:
-  ```kotlin
-  interface UserRoleResolver {
-      suspend fun resolveRole(uid: String): Result<UserRole>
-  }
-  ```
-  `app` modul implementira ovo sučelje kao adapter oko postojećeg `UserRepository.getUserRole()` (`FirestoreUserRepository` ostaje u `app`, nema potrebe da core zna za Firestore). Razlog za ovu apstrakciju: svaka login metoda — email i budući Google — treba identičan korak razrješavanja uloge nakon autentikacije, pa taj korak mora biti dio `core` kontrakta, a ne ponavljan u svakom modulu zasebno.
-- `AuthRepository` i `FcmTokenProvider` ostaju Firebase-ovisni detalji **unutar** svojih login modula (ili u `app`-u, ovisno o modulu) — ne sele se u `core`, jer je svaka login metoda odgovorna za vlastiti mehanizam autentikacije.
+### Preduvjeti
 
-**3. Nulte ovisnosti `core` modula o Firebase/Android frameworku:**
+- Android Studio (novija stabilna verzija)
+- **JDK 21** za Gradle, jer noviji JDK ruši build (vidi [Potreban JDK za build](#potreban-jdk-za-build))
+- Android uređaj ili emulator s Google Play servisima (potrebno za Google prijavu i FCM), Android 8.0 (API 26) ili noviji
 
-`core` smije ovisiti isključivo o čistom Kotlinu i Jetpack Compose runtime/UI artefaktima (potrebnim za `@Composable` potpis u `LoginModule.Content()`) — nikad o `com.google.firebase:*`, `android.*` Context-ovisnom API-ju, niti bilo kojem konkretnom repozitoriju (`FirestoreUserRepository`, `FirebaseAuthRepository` i sl.). Compose UI ovisnost se ne smatra "framework-specifičnom" u smislu ove odluke — standardna je i očekivana ovisnost svakog core modula u višemodularnoj Compose aplikaciji, za razliku od Firebase SDK-a koji je vezan uz konkretnu backend uslugu.
+`Android/app/google-services.json` je već u repozitoriju i spaja aplikaciju na Firebase projekt `cinema-8ff5c`.
 
-**Izlaz ovog ticketa:** ova dokumentirana odluka, pregledana i odobrena prije nego sljedeći ticket (fizička ekstrakcija `:core` i `:login-email` modula) počne.
+### Pokretanje aplikacije
 
-## Git workflow
+1. U Android Studiju otvori mapu **`Android/`** (ne root repozitorija).
+2. Pričekaj Gradle sync i pokreni konfiguraciju `app` na uređaju ili emulatoru.
 
-Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
+Ili iz terminala, unutar `Android/`:
 
-**Prije pokretanja `git checkout -b feature/SCRUM-<id>-...`, obavezno potvrdi broj ticketa u Jiri** — ne kreiraj granu na temelju broja iz sažetka razgovora, chata ili sjećanja. Kriv broj znači naknadno preimenovanje grane i/ili rebase commita (vidi incident: grana i commit su prvo kreirani kao "SCRUM-69" umjesto ispravnog "SCRUM-93", što je zahtijevalo naknadan popravak).
+```
+./gradlew installDebug
+```
+
+**Google prijava** radi samo ako je SHA-1 otisak debug keystorea s kojim buildaš dodan u Firebase Console (Project settings → Your apps → Android app → Add fingerprint). SHA-1 dobiješ naredbom `./gradlew :app:signingReport`.
+
+**Admin račun:** korisnik postaje administrator tako da se u Firestoreu na njegovom dokumentu `users/{uid}` postavi `role: "admin"` (ručno, kroz Firebase Console).
+
+**Test podaci:** za punjenje kolekcije `screenings` koristi `firestore-seed` (vidi [Seedanje test podataka u Firestore](#seedanje-test-podataka-u-firestore)).
+
+### Testovi
+
+Unit testovi svih Android/Kotlin modula (`app`, `core`, `login-email`, `login-google`, `firestore-seed`), unutar `Android/`:
+
+```
+./gradlew test
+```
+
+Testovi Cloud Functions, unutar `functions/`:
+
+```
+npm install
+npm test
+```
+
+## Sadržaj
+
+**Razvoj i okruženje**
+
+- [Potreban JDK za build](#potreban-jdk-za-build)
+- [Rješavanje problema s Android emulatorom](#rješavanje-problema-s-android-emulatorom)
+- [Git workflow](#git-workflow)
+
+**Firebase**
+
+- [Firestore shema podataka](#firestore-shema-podataka)
+- [Firestore security rules](#firestore-security-rules)
+- [Push notifikacije (Cloud Functions)](#push-notifikacije-cloud-functions)
+- [Seedanje test podataka u Firestore](#seedanje-test-podataka-u-firestore)
+
+**Arhitekturne odluke i dizajn**
+
+- [Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)](#odluka-loginmodule-kontrakt-i-granice-core-modula-scrum-132)
+- [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)
+- [Odluka: arhitektura push notifikacija (FCM)](#odluka-arhitektura-push-notifikacija-fcm)
+- [Odluka: FCM dopuštenje i upravljanje device tokenom](#odluka-fcm-dopuštenje-i-upravljanje-device-tokenom)
+- [Odluka: pravilo izračuna popularnosti i mehanizam praćenja](#odluka-pravilo-izračuna-popularnosti-i-mehanizam-praćenja)
 
 ## Potreban JDK za build
 
@@ -169,6 +167,12 @@ Nakon restarta provjeri DNS prije nego nastaviš testirati: `adb shell ping -c 2
 **Uzrok:** nedostatak RAM-a/swapa na računalu (emulator je težak proces) — ne stvarni sukob dviju instanci. Provjeri swap: `sysctl vm.swapusage` — ako je gotovo pun, to je uzrok.
 
 **Fix:** prije pokretanja emulatora zatvori memorijski zahtjevne aplikacije koje trenutno ne trebaš (puno Chrome tabova, Teams, Word, Remote Desktop Manager i sl.), zatim pokreni/restartaj emulator iz Android Studija (Device Manager).
+
+## Git workflow
+
+Naziv grane i prefiks commit poruke moraju biti `feature/SCRUM-<id>-kratak-opis` odnosno `SCRUM-<id>: opis`, gdje je `<id>` **točan** broj Jira ticketa.
+
+**Prije pokretanja `git checkout -b feature/SCRUM-<id>-...`, obavezno potvrdi broj ticketa u Jiri** — ne kreiraj granu na temelju broja iz sažetka razgovora, chata ili sjećanja. Kriv broj znači naknadno preimenovanje grane i/ili rebase commita (vidi incident: grana i commit su prvo kreirani kao "SCRUM-69" umjesto ispravnog "SCRUM-93", što je zahtijevalo naknadan popravak).
 
 ## Firestore shema podataka
 
@@ -328,3 +332,118 @@ Za čisti reset prije seedanja (**briše sve postojeće dokumente** u `screening
 ```
 
 ⚠️ `--clear` je destruktivno i briše SVE postojeće projekcije, uključujući stvarne podatke ako slučajno pokreneš protiv pogrešnog Firebase projekta — provjeri da service account key pokazuje na dev/test projekt, ne produkciju.
+
+## Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)
+
+Prije fizičke ekstrakcije login modula (email + lozinka kao postojeći modul, Google prijava kao novi, vidi [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)) potrebno je pismeno definirati granicu između `core` modula i `app`-a, prije nego ikakav kod bude fizički premješten. Ovo je spike ticket — bez implementacijskog koda, samo arhitekturna odluka.
+
+**Trenutno stanje (polazna točka):** aplikacija je jedan Gradle modul (`:app`), uz `:firestore-seed` kao nepovezan alat za seedanje podataka (vidi `settings.gradle.kts`). `LoginViewModel` izravno sastavlja četiri Firebase-ovisne apstrakcije preko DIP default-parametara: `AuthRepository`, `UserRepository`, `FcmTokenProvider`, `AnalyticsLogger`. Nema nikakve login-metoda apstrakcije — `LoginPage.kt` je jedini, hardkodirani email+lozinka ekran.
+
+**1. Oblik `LoginModule` sučelja:**
+
+```kotlin
+interface LoginModule {
+    val id: String
+    val displayName: String
+
+    @Composable
+    fun Content(onLoginSuccess: (UserRole) -> Unit)
+}
+```
+
+Svaki način prijave (postojeći email modul, budući Google modul, kasnije i SMS modul) implementira ovo sučelje kao samostalnu jedinicu — ekran odabira prijave (SCRUM-138 mockup) iterira listu dostupnih `LoginModule` instanci bez poznavanja njihove konkretne implementacije.
+
+**2. Koji tipovi idu u `core`:**
+
+- `UserRole` (enum) — seli se u `core` **bez promjene**. Već je čist, bez ikakve Firebase/Android ovisnosti (`data/UserRole.kt`), pa je direktan kandidat.
+- `UserRoleResolver` — **novo** sučelje, definirano u `core`, koje svaki login modul koristi nakon uspješne autentikacije da razriješi ulogu:
+  ```kotlin
+  interface UserRoleResolver {
+      suspend fun resolveRole(uid: String): Result<UserRole>
+  }
+  ```
+  `app` modul implementira ovo sučelje kao adapter oko postojećeg `UserRepository.getUserRole()` (`FirestoreUserRepository` ostaje u `app`, nema potrebe da core zna za Firestore). Razlog za ovu apstrakciju: svaka login metoda — email i budući Google — treba identičan korak razrješavanja uloge nakon autentikacije, pa taj korak mora biti dio `core` kontrakta, a ne ponavljan u svakom modulu zasebno.
+- `AuthRepository` i `FcmTokenProvider` ostaju Firebase-ovisni detalji **unutar** svojih login modula (ili u `app`-u, ovisno o modulu) — ne sele se u `core`, jer je svaka login metoda odgovorna za vlastiti mehanizam autentikacije.
+
+**3. Nulte ovisnosti `core` modula o Firebase/Android frameworku:**
+
+`core` smije ovisiti isključivo o čistom Kotlinu i Jetpack Compose runtime/UI artefaktima (potrebnim za `@Composable` potpis u `LoginModule.Content()`) — nikad o `com.google.firebase:*`, `android.*` Context-ovisnom API-ju, niti bilo kojem konkretnom repozitoriju (`FirestoreUserRepository`, `FirebaseAuthRepository` i sl.). Compose UI ovisnost se ne smatra "framework-specifičnom" u smislu ove odluke — standardna je i očekivana ovisnost svakog core modula u višemodularnoj Compose aplikaciji, za razliku od Firebase SDK-a koji je vezan uz konkretnu backend uslugu.
+
+**Izlaz ovog ticketa:** ova dokumentirana odluka, pregledana i odobrena prije nego sljedeći ticket (fizička ekstrakcija `:core` i `:login-email` modula) počne.
+
+## Dizajn: login selektor i login moduli (SCRUM-138)
+
+Prije implementacije login modularnosti (email + lozinka kao postojeći modul, Google prijava kao novi) izrađeni su i odobreni UI/UX mockupi za tri elementa, usklađeni s postojećim Material 3 izgledom aplikacije:
+
+1. **Ekran odabira načina prijave** — novi ekran koji zamjenjuje izravan ulazak na email formu; nudi email i Google prijavu ravnopravno (filled gumb za email, zaseban Google gumb ispod razdjelnika "ili").
+2. **Ekran prijave emailom** — zadržava postojeći izgled (`LoginPage.kt`), uz jedinu izmjenu: dodanu strelicu natrag prema ekranu odabira.
+3. **Tretman Google gumba** — stanja (default / pritisnuto / učitavanje) i mjere (48dp visina, 18×18dp logo, 12dp razmak logo–tekst, Roboto Medium 14sp, rub 1dp #DADCE0, radijus 4dp) po Google brand smjernicama. Gumb se ne boji u boju aplikacije — to je zahtjev Google-ovih smjernica za prijavu. Nakon dodira otvara se sistemski Android account picker, koji aplikacija ne stilizira (izvan opsega dizajna).
+
+**Paleta:** primarna boja gumba je tamno smaragdno zelena (`#1F4D3D` light / `#5FAE8C` dark), uz postojeći zlatni akcent — odabrano umjesto originalnog prijedloga (duboko vinska crvena) nakon pregleda mockupa.
+
+**Opseg:** treći modul iz Login Modularity epic-a (prijava brojem telefona / SMS kod) nije dio ovog ticketa niti mockupa — dodaje se kao zaseban budući modul bez izmjene ekrana odabira (DIP princip, vidi ticket opise za Login Modularity epic).
+
+Mockupi su pregledani i odobreni prije početka implementacije (zahtjev AC-a); implementacija po ovom dizajnu prati se kroz sljedeći ticket u Login Modularity epic-u.
+
+## Odluka: arhitektura push notifikacija (FCM)
+
+Aplikacija nema server-side komponentu — svi upisi u Firestore idu izravno iz Android klijenta. Push notifikacije (odluka o rezervaciji, nova projekcija, admin obavijest vezana uz projekciju) zahtijevaju nešto što detektira relevantan Firestore upis i pošalje FCM poruku, jer klijent koji je napisao promjenu ne može pouzdano poslati notifikaciju **drugom** korisniku (nema pristup njegovom FCM tokenu niti razlog da drži server-side kredencijale).
+
+**Razmatrane opcije:**
+
+1. **Cloud Functions (Firestore trigger)** — server-side funkcija koja sluša `onDocumentCreated`/`onDocumentUpdated` na relevantnoj kolekciji i šalje FCM poruku preko Firebase Admin SDK-a.
+2. **Klijentski trigger** — admin uređaj izravno zove FCM Admin API/HTTP v1 kad izvrši akciju. Odbačeno: zahtijeva da klijent (mobilna aplikacija) drži server-side kredencijale/service account, što je sigurnosno neprihvatljivo (kredencijal bi bio dostupan svakom tko dekompilira APK).
+3. **Scheduled job (periodično provjeravanje)** — polling najnovijih promjena u fiksnim intervalima. Odbačeno: uvodi kašnjenje (notifikacija ne stiže odmah nakon promjene) i nepotrebno je kompleksnije od direktnog triggera na sam upis.
+
+**Odluka: Cloud Functions (Firestore trigger).** Ovo je standardan, preporučen Firebase obrazac za ovaj problem — nema sigurnosnih kompromisa klijentskog pristupa, a šalje notifikaciju odmah čim se dogodi relevantan upis (bez kašnjenja pollinga).
+
+**Infrastrukturne/troškovne implikacije:**
+
+- Cloud Functions zahtijevaju Firebase **Blaze plan** (pay-as-you-go, potrebna dodana kartica na projekt) — projekt je do sada bio na besplatnom Spark planu.
+- Sam FCM (slanje notifikacija) je uvijek besplatan, bez obzira na plan — trošak dolazi isključivo od Cloud Functions izvršavanja.
+- Cloud Functions imaju generozan free tier (milijuni pozivâ mjesečno) — za opseg ovog projekta stvarni trošak je u praksi $0, ali Blaze plan i dalje zahtijeva postavljenu karticu.
+- Novi Node.js modul (`functions/`) u repozitoriju, sa zasebnim `package.json`/testovima (Jest) — ne utječe na Android build, ali zahtijeva Node.js i Firebase CLI instalirane lokalno za razvoj/testiranje/deploy.
+- Deploy je ručan korak (`firebase deploy --only functions`), izvan Android CI/CD toka.
+
+**Mapiranje triggerâ na mehanizam** (svaki je zasebna Cloud Function, `functions/index.js`):
+
+| Notifikacija | Firestore trigger | Cilj slanja |
+|---|---|---|
+| Odluka o rezervaciji (odobreno/odbijeno) | `onDocumentUpdated` na `reservations/{reservationId}`, kad se `status` promijeni u APPROVED/REJECTED | Pojedinačni FCM token korisnika (`users/{uid}.fcmToken`) |
+| Nova projekcija objavljena | `onDocumentCreated` na `screenings/{screeningId}` | FCM tema `new_screenings` (svi pretplaćeni korisnici) |
+| Admin obavijest vezana uz projekciju | `onDocumentCreated` na `screeningNotifications/{notificationId}` | FCM tema `screening_notifications` (svi pretplaćeni korisnici) |
+
+**Napomena o testiranju:** Firebase Local Emulator Suite nema FCM emulator — trigger logika (koja Firestore polja čita, koga cilja) testira se besplatno lokalno emulatorom, ali stvarna isporuka notifikacije zahtijeva pravi deploy ili slanje test poruke kroz Firebase Console. Ova odluka je provedena kroz SCRUM-101 (odluka o rezervaciji), SCRUM-102 (nova projekcija) i SCRUM-103 (admin obavijest) — detaljne upute za setup/testiranje/deploy `functions/` modula nalaze se u sekciji "Push notifikacije (Cloud Functions)" (dodanoj kroz te tickete).
+
+## Odluka: FCM dopuštenje i upravljanje device tokenom
+
+Slanje ciljanih push notifikacija zahtijeva spremljen FCM token po korisniku i zatraženo dopuštenje za notifikacije na Android 13+. Ova odluka definira očekivano ponašanje u oba slučaja, kako bi tickete za slanje notifikacija (SCRUM-101/102/103) bilo moguće implementirati na konzistentan način.
+
+**Spremanje i osvježavanje tokena:**
+
+- Token se sprema u **jedno** polje `fcmToken` na `users/{uid}` Firestore dokumentu (ne u zasebnu kolekciju/podkolekciju) — najjednostavniji oblik dovoljan za trenutan opseg aplikacije.
+- Token se dohvaća i sprema pri **svakoj uspješnoj prijavi** (`LoginViewModel.setUpPushNotifications()`), i ponovno svaki put kad Firebase SDK interno osvježi token (`CinemaMessagingService.onNewToken()`), čime ostaje ažuran bez potrebe za ručnim osvježavanjem od strane korisnika.
+- Firestore pravilo (`firestore.rules`) dopušta korisniku da upiše/ažurira **isključivo** vlastito `fcmToken` polje na vlastitom dokumentu (`request.auth.uid == userId` i `affectedKeys().hasOnly(['fcmToken'])`), ništa drugo — sprječava korisnika da mijenja npr. `role`.
+
+**Multi-device: eksplicitno izvan opsega.** Trenutna shema podržava **jedan token po korisniku** — ako se isti korisnik prijavi na drugom uređaju, novi token prepisuje stari (posljednja prijava "pobjeđuje"), pa prethodni uređaj prestaje primati notifikacije bez ikakve obavijesti o tome. Ovo je svjesan kompromis radi jednostavnosti; podrška za više uređaja po korisniku (npr. podkolekcija `users/{uid}/deviceTokens/{token}` uz slanje na sve tokene) nije implementirana i trebala bi biti zaseban budući ticket ako postane potrebna.
+
+**Ponašanje kod dopuštenja za notifikacije (Android 13+):**
+
+- Dopuštenje `POST_NOTIFICATIONS` traži se jednom pri pokretanju `MainActivity` (`requestNotificationPermissionIfNeeded()`), samo ako još nije odobreno — ne traži se ponovno unutar iste sesije ako je već odobreno ili odbijeno.
+- **Ako korisnik odbije:** aplikacija nastavlja raditi normalno, bez pada — poziv `NotificationManager.notify()` u pozadini jednostavno neće prikazati ništa na uređajima bez dopuštenja (Android to tiho ignorira, ne baca iznimku). Nema dodatne logike koja bi to posebno hvatala jer nije ni potrebna.
+- **Ponovno pitanje nakon odbijanja:** ne implementira se ručno u kodu — Android sam po sebi (nakon jednog ili dva odbijanja, ovisno o verziji) prestaje prikazivati sistemski dijalog za to dopuštenje dok korisnik ručno ne omogući iz postavki, pa naš kod ne mora (i ne smije) pokušavati zaobići to ponašanje.
+- **Re-request UI unutar aplikacije: trenutno ne postoji.** Nema gumba/postavke unutar aplikacije koja bi korisnika uputila natrag u sistemske postavke da ručno omogući notifikacije nakon odbijanja. Ovo je svjesna odluka radi opsega — ako se pokaže potrebnim (npr. korisnici se žale da ne dobivaju notifikacije), dodavanje takvog gumba (koji otvara `Settings.ACTION_APP_NOTIFICATION_SETTINGS`) je mali, izolirani budući ticket.
+
+## Odluka: pravilo izračuna popularnosti i mehanizam praćenja
+
+Model `Screening` već ima polja `views` i `popularity`, a `ScreeningsViewModel`/`ScreeningsPage` već imaju gotove sort opcije "Najgledaniji" (`SortOption.MOST_VIEWED`, sortira po `views`) i "Najpopularniji" (`SortOption.MOST_POPULAR`, sortira po `popularity`) — iz SCRUM-7/114. Problem: ništa trenutno ne upisuje/povećava ta polja, pa su to statične vrijednosti iz seed podataka.
+
+**1. Što se broji kao "view":** otvaranje ekrana s detaljima projekcije (`ScreeningDetailsViewModel` init, kad se `observeScreening()` uspješno učita). Broji se svaki put kad se ekran otvori — bez deduplikacije po korisniku/sesiji (jednostavan sirovi brojač, dosljedno ostatku aplikacije koji ne radi analytics-grade dedup ni za što drugo).
+
+**2. Formula za `popularity`:** `views` i `popularity` ostaju **dva neovisna brojača**, ne jedna kombinirana/ponderirana ocjena — ovo je već implicitno pretpostavljeno postojećim dizajnom (`SortOption` ima dvije zasebne opcije koje sortiraju po različitim poljima, ne po jednoj spojenoj metrici). `popularity` se povećava za 1 svaki put kad se uspješno kreira rezervacija za tu projekciju — inkrement se dodaje u **istu Firestore transakciju** u kojoj `FirestoreTicketRepository.reserveTicket()` već povećava `reservedSeats`, radi atomičnosti. Nema ponderiranja views-a unutar popularity vrijednosti — time se izbjegava uvođenje nove formule koja bi zahtijevala i promjenu postojećeg `SortOption` modela.
+
+**3. Firebase Analytics vs. Firestore brojači:** odluka je zadržati postojeće Firestore brojače (`views`, `popularity` polja) kao izvor istine, **ne** integrirati Firebase Analytics SDK za ovu funkcionalnost. Razlog: Firebase Analytics podaci su orijentirani na izvještavanje (BigQuery export, Analytics konzola) s odgodom od nekoliko sati i nisu upitljivi/sortirivi u stvarnom vremenu iz klijenta — ne mogu pogoniti `sortedByDescending` na popisu projekcija unutar aplikacije. Firestore brojači su već izravno upitljivi i dosljedni postojećoj implementaciji.
+
+**Mjesta izmjene za implementaciju (Ticket 24):**
+- `ScreeningDetailsViewModel.init` — inkrement `views` nakon uspješnog `observeScreening()` (jednom po otvaranju ekrana, ne na svaku emisiju live listenera).
+- `FirestoreTicketRepository.reserveTicket()` — inkrement `popularity` unutar postojeće transakcije, uz `reservedSeats`.
