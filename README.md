@@ -113,6 +113,7 @@ npm test
 
 **Arhitekturne odluke i dizajn**
 
+- [Vizualni identitet (SCRUM-142)](#vizualni-identitet-scrum-142)
 - [Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)](#odluka-loginmodule-kontrakt-i-granice-core-modula-scrum-132)
 - [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)
 - [Odluka: arhitektura push notifikacija (FCM)](#odluka-arhitektura-push-notifikacija-fcm)
@@ -248,19 +249,33 @@ Model: `ScreeningNotification.kt`. Za razliku od `news`, uvijek je vezana uz kon
 
 ## Firestore security rules
 
-Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija) i moraju se ručno objaviti u Firebase Console (Firestore Database → Rules → Publish) — repozitorij nema Firebase CLI/`firebase.json` postavljen za automatski deploy.
+Sva pravila pristupa nalaze se u `firestore.rules` (root repozitorija). Sama datoteka u repozitoriju ne utječe na produkciju dok se pravila ne objave. `firebase.json` u rootu repozitorija pokazuje na `firestore.rules`, pa se objavljuju Firebase CLI-jem iz root mape:
+
+```
+firebase deploy --only firestore:rules
+```
+
+Alternativno se mogu objaviti ručno u Firebase Console (Firestore Database → Rules → copy-paste sadržaja `firestore.rules` → Publish).
 
 **Kad dodaješ novu Firestore kolekciju, obavezno:**
 
 1. Dodaj `match /<kolekcija>/{docId} { ... }` blok u `firestore.rules` s pravilima za `read`/`create`/`update`/`delete` — prati postojeće obrasce (npr. `screenings`, `news`) kao predložak.
-2. Objavi izmjenu u Firebase Console (copy-paste sadržaja `firestore.rules`) — sama datoteka u repozitoriju ne utječe na produkciju dok se ručno ne objavi.
+2. Objavi izmjenu (`firebase deploy --only firestore:rules` ili ručno kroz Firebase Console, vidi gore) — sama datoteka u repozitoriju ne utječe na produkciju dok se ne objavi.
 3. Ručno testiraj write/read operaciju na uređaju/emulatoru prije nego zatvoriš ticket — unit testovi s fake repozitorijima **ne** validiraju stvarna Firestore pravila, pa PERMISSION_DENIED greška ostaje neotkrivena dok se ne testira uživo (vidi SCRUM-95, SCRUM-122).
 
 Trenutno pokrivene kolekcije: `users`, `screenings`, `reservations`, `purchases`, `news`, `screeningNotifications`.
 
 ## Push notifikacije (Cloud Functions)
 
-`functions/` je zaseban Node.js modul (Cloud Functions, 2nd gen) koji šalje FCM push notifikaciju korisniku kad admin odobri/odbije njegovu rezervaciju. Trigeriran je na `onDocumentUpdated` za `reservations/{reservationId}` (vidi `functions/index.js`).
+`functions/` je zaseban Node.js modul (Cloud Functions, 2nd gen) koji šalje FCM push notifikacije. Sadrži tri funkcije, sve u `functions/index.js`:
+
+| Funkcija | Trigger | Šalje |
+|---|---|---|
+| `onReservationStatusChange` (SCRUM-101) | `onDocumentUpdated` na `reservations/{reservationId}`, kad admin odobri/odbije rezervaciju | Korisniku koji je rezervirao, na njegov `users/{uid}.fcmToken` |
+| `onScreeningCreated` (SCRUM-102) | `onDocumentCreated` na `screenings/{screeningId}` | Na FCM temu `new_screenings` |
+| `onScreeningNotificationCreated` (SCRUM-103) | `onDocumentCreated` na `screeningNotifications/{notificationId}` | Na FCM temu `screening_notifications` |
+
+Obrazloženje ovakve arhitekture je u sekciji [Odluka: arhitektura push notifikacija (FCM)](#odluka-arhitektura-push-notifikacija-fcm).
 
 ### Priprema
 
@@ -277,7 +292,7 @@ npm install
 npm test
 ```
 
-Jest testovi (`functions/index.test.js`) pokrivaju `buildReservationDecisionMessage` i `handleReservationStatusChange` kroz injektirane fakeove za Firestore/Messaging — ne zahtijevaju stvarni Firebase projekt.
+Jest testovi (`functions/index.test.js`) pokrivaju sve tri funkcije — za svaku izgradnju poruke (`buildReservationDecisionMessage`, `buildNewScreeningMessage`, `buildScreeningNotificationMessage`) i logiku triggera (`handleReservationStatusChange`, `handleScreeningCreated`, `handleScreeningNotificationCreated`) — kroz injektirane fakeove za Firestore/Messaging. Ne zahtijevaju stvarni Firebase projekt.
 
 Za integracijsku provjeru da se trigger stvarno okida na promjenu statusa (i čita ispravne dokumente), koristi Firebase Local Emulator Suite iz root mape repozitorija:
 
@@ -333,6 +348,23 @@ Za čisti reset prije seedanja (**briše sve postojeće dokumente** u `screening
 
 ⚠️ `--clear` je destruktivno i briše SVE postojeće projekcije, uključujući stvarne podatke ako slučajno pokreneš protiv pogrešnog Firebase projekta — provjeri da service account key pokazuje na dev/test projekt, ne produkciju.
 
+## Vizualni identitet (SCRUM-142)
+
+Aplikacija koristi paletu **Burgundy & Cream**, definiranu u `Android/app/src/main/java/hr/foi/air/cinema/ui/theme/` (`Color.kt`, `Theme.kt`):
+
+| Uloga u Material 3 shemi | Boja | Konstanta |
+|---|---|---|
+| `primary` | `#7A1E2B` (burgundy) | `CinemaBurgundy` |
+| `secondary` | `#C9A227` (zlatna) | `CinemaGold` |
+| `background` | `#FAF3E8` (cream) | `CinemaCream` |
+| `surface`, `onPrimary`, `onError` | `#FFFFFF` | `CinemaWhite` |
+| `onSecondary`, `onBackground`, `onSurface` | `#2B1B1B` | `CinemaOnDark` |
+| `error` | `#B3261E` | `CinemaError` |
+
+Aplikacija ima **samo svijetlu shemu**: nema tamne teme ni dynamic colora (Android 12+), pa izgled ne ovisi o sistemskim postavkama uređaja. Nove ekrane treba bojati preko `MaterialTheme.colorScheme`, ne izravno hex vrijednostima, kako bi pratili ovu paletu.
+
+Ova paleta zamjenjuje zelenu iz [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138).
+
 ## Odluka: LoginModule kontrakt i granice core modula (SCRUM-132)
 
 Prije fizičke ekstrakcije login modula (email + lozinka kao postojeći modul, Google prijava kao novi, vidi [Dizajn: login selektor i login moduli (SCRUM-138)](#dizajn-login-selektor-i-login-moduli-scrum-138)) potrebno je pismeno definirati granicu između `core` modula i `app`-a, prije nego ikakav kod bude fizički premješten. Ovo je spike ticket — bez implementacijskog koda, samo arhitekturna odluka.
@@ -380,6 +412,8 @@ Prije implementacije login modularnosti (email + lozinka kao postojeći modul, G
 3. **Tretman Google gumba** — stanja (default / pritisnuto / učitavanje) i mjere (48dp visina, 18×18dp logo, 12dp razmak logo–tekst, Roboto Medium 14sp, rub 1dp #DADCE0, radijus 4dp) po Google brand smjernicama. Gumb se ne boji u boju aplikacije — to je zahtjev Google-ovih smjernica za prijavu. Nakon dodira otvara se sistemski Android account picker, koji aplikacija ne stilizira (izvan opsega dizajna).
 
 **Paleta:** primarna boja gumba je tamno smaragdno zelena (`#1F4D3D` light / `#5FAE8C` dark), uz postojeći zlatni akcent — odabrano umjesto originalnog prijedloga (duboko vinska crvena) nakon pregleda mockupa.
+
+> **Napomena:** ova paleta je naknadno zamijenjena. SCRUM-142 uveo je vizualni identitet Burgundy & Cream za cijelu aplikaciju, pa primarna boja sada nije zelena nego burgundy (`#7A1E2B`). Trenutna paleta je u sekciji [Vizualni identitet (SCRUM-142)](#vizualni-identitet-scrum-142).
 
 **Opseg:** treći modul iz Login Modularity epic-a (prijava brojem telefona / SMS kod) nije dio ovog ticketa niti mockupa — dodaje se kao zaseban budući modul bez izmjene ekrana odabira (DIP princip, vidi ticket opise za Login Modularity epic).
 
